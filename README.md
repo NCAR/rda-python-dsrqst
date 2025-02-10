@@ -1,1 +1,1 @@
-RDA python code template to create new and modify existing RDA python packages.
+RDA python package to add and process user requests for RDA data.
