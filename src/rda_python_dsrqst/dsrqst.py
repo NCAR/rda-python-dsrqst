@@ -120,7 +120,7 @@ def start_action():
          ALLCNT = len(PgOPT.params['WF'])
          set_web_files()
       else:
-         reorder_request_files(PgOPT.params['ON'])
+         PgRqst.reorder_request_files(PgOPT.params['ON'])
    elif PgOPT.PGOPT['CACT'] == 'SP':
       ALLCNT = len(PgOPT.params['PI']) if 'PI' in PgOPT.params else 0
       if ALLCNT > 0:
@@ -136,7 +136,7 @@ def start_action():
          ALLCNT = len(PgOPT.params['WF'])
          set_tar_files()
       else:
-         reorder_tar_files(PgOPT.params['ON'])
+         PgRqst.reorder_tar_files(PgOPT.params['ON'])
    elif PgOPT.PGOPT['CACT'] == 'UL':
       if 'PI' in PgOPT.params:
          ALLCNT = len(PgOPT.params['PI'])
@@ -593,7 +593,7 @@ def get_tar_files():
    if 'FN' in PgOPT.params: fnames = PgOPT.params['FN']
    fnames = PgDBI.fieldname_string(fnames, PgOPT.PGOPT[tname], PgOPT.PGOPT['tfall'])
    if 'WD' in PgOPT.params:
-      fname += "B"
+      fnames += "B"
       dojoin = 1
    qnames = fnames
    onames = PgOPT.params['ON'] if 'ON' in PgOPT.params else "RO"
@@ -872,7 +872,7 @@ def set_tar_files(rindex):
    flds = PgOPT.get_field_keys(tname, None, "B")   # exclude dataset
    PgOPT.validate_multiple_values(tname, ALLCNT, flds)
    if 'RO' in PgOPT.params and not PgOPT.params['DO']: flds += 'O'   
-   fields = get_string_fields(flds, tname)
+   fields = PgOPT.get_string_fields(flds, tname)
    dsids = PgRqst.get_request_dsids(PgOPT.params['RI'])
 
    ridx = rindex if rindex else 0
@@ -916,7 +916,7 @@ def set_web_files(rindex = 0):
    fields = PgOPT.get_string_fields(flds, tname)
    if 'SL' in PgOPT.params:
       dsids = PgRqst.get_request_dsids(PgOPT.params['RI'])
-      PgOPT.params['SL'] = fname2fid(PgOPT.params['SL'], dsids, PgOPT.params['OT'])
+      PgOPT.params['SL'] = PgRqst.fname2fid(PgOPT.params['SL'], dsids, PgOPT.params['OT'])
 
    ridx = rindex if rindex else 0
    for i in range(ALLCNT):
@@ -925,7 +925,7 @@ def set_web_files(rindex = 0):
          if ridx <= 0: continue
       cnd = "rindex = {} AND wfile = '{}'".format(ridx, PgOPT.params['WF'][i])
       pgrec = PgDBI.pgget(tname, fields, cnd, PgOPT.PGOPT['extlog'])
-      if 'RO' in PgOPT.params: PgOPT.params['DO'][i] = PgRqst.get_next_disp_order(ridx, table)
+      if 'RO' in PgOPT.params: PgOPT.params['DO'][i] = PgRqst.get_next_disp_order(ridx, tname)
       record = PgOPT.build_record(flds, pgrec, tname, i)
       if record:
          if 'srctype' in record and stypes.find(record['srctype']) < 0:
@@ -989,7 +989,7 @@ def unlock_partition_info():
       elif PgLock.lock_partition(pidx, 0, PgOPT.PGOPT['extlog']) > 0:
          modcnt += 1
          PgLOG.pglog("Request Paritition {}: Unlocked {}/{}".format(pidx, pgrec['pid'], pgrec['lockhost']), PgOPT.PGOPT['wrnlog'])
-      elif (check_host_down(None, pgrec['lockhost']) and
+      elif (PgFile.check_host_down(None, pgrec['lockhost']) and
             PgLock.lock_partition(pidx, -2, PgOPT.PGOPT['extlog']) > 0):
          modcnt += 1
          PgLOG.pglog("Request Paritition {}: Force unlocked {}/{}".format(pidx, pgrec['pid'], pgrec['lockhost']), PgOPT.PGOPT['wrnlog'])
@@ -2743,13 +2743,13 @@ def reorder_requests(pgrecs, mcnt):
             addnow = 0
 
       if addnow > 0:
-         pgnows = addrecord(pgnows, pgrec, ncnt)
+         pgnows = PgUtil.addrecord(pgnows, pgrec, ncnt)
          ncnt += 1
       elif addnow < 0:
-         pgruns = addrecord(pgruns, pgrec, rcnt)
+         pgruns = PgUtil.addrecord(pgruns, pgrec, rcnt)
          rcnt += 1
       else:
-         pglats = addrecord(pglats, pgrec, lcnt)
+         pglats = PgUtil.addrecord(pglats, pgrec, lcnt)
          lcnt += 1
 
       if m < mcnt: continue

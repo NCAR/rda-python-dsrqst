@@ -27,6 +27,7 @@ from rda_python_common import PgSIG
 from rda_python_common import PgLock
 from rda_python_common import PgOPT
 from rda_python_common import PgDBI
+from rda_python_common import PgSplit
 
 CORDERS = {}
 
@@ -472,6 +473,7 @@ def reorder_request_files(onames):
       cnt = len(pgrecs['wfile']) if pgrecs else 0
       if not ocnd and cnt > 1: pgrecs = PgUtil.sorthash(pgrecs, flds, hash)
 
+      record = {}
       for j in range(cnt):
          if (j+1) != pgrecs['disp_order'][j]:
             record['disp_order'] = j + 1
@@ -510,6 +512,7 @@ def reorder_tar_files(onames):
       cnt = len(pgrecs['wfile']) if pgrecs else 0
       if not ocnd and cnt > 1: pgrecs = PgUtil.sorthash(pgrecs, flds, hash)
 
+      record = {}
       for j in range(cnt):
          if (j+1) != pgrecs['disp_order'][j]:
             record['disp_order'] = j + 1
@@ -548,6 +551,7 @@ def reorder_source_files(onames):
       cnt = len(pgrecs['wfile']) if pgrecs else 0
       if not ocnd and cnt > 1: pgrecs = PgUtil.sorthash(pgrecs, flds, hash)
 
+      record = {}
       for j in range(cnt):
          if (j+1) != pgrecs['disp_order'][j]:
             record['disp_order'] = j + 1

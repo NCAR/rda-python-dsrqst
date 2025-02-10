@@ -358,7 +358,7 @@ def add_request_record(pgrqst, logact):
    if ridx > 0:
       if ridx != nidx:  # reset request ID
          record = {'rqstid' : "{}{}".format(lname, ridx)}
-         pgupdt("dsrqst", record, "rindex = {}".format(ridx), logact|PgLOG.EXITLG)
+         PgDBI.pgupdt("dsrqst", record, "rindex = {}".format(ridx), logact|PgLOG.EXITLG)
 
       PgLOG.pglog("{}: Request Index {} added for <{}> {}".format(pgrqst['dsid'], ridx, UNAMES['name'], pgrqst['email']), PgLOG.LOGWRN)
       pgrqst['rindex'] = ridx
@@ -508,7 +508,7 @@ def return_request_message(rqst, success, logact):
 def rda_request_status(ridx = 0, email = None, logact = PgLOG.ERRLOG):
 
    if ridx and not isinstance(ridx, int):
-      ms.re.match(r'^\D+(\d+)$', ridx)
+      ms = re.match(r'^\D+(\d+)$', ridx)
       if ms:
          ridx = int(ms.group(1))
       elif re.match(r'^.+@.+\.\w+$', ridx):
