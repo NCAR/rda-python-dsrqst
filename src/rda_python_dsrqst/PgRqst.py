@@ -317,7 +317,7 @@ PgOPT.PGOPT['ready'] = "request_ready.txt"
 # set default options
 PgOPT.PGOPT['DVP'] = PgOPT.PGOPT['VP'] = 5     # in days
 PgOPT.PGOPT['FLMT'] = 1000 
-PgOPT.PGOPT['PTMAX'] = 20    # max number of partitions for a signle request
+PgOPT.PGOPT['PTMAX'] = 24    # max number of partitions for a signle request
 PgOPT.PGOPT['TARPATH'] = "TarFiles/"
 
 # set default parameters
