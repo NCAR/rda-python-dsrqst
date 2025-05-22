@@ -538,7 +538,7 @@ def get_request_partitions():
 #
 def get_web_files():
 
-   tables = "wfrqst CROSS JOIN dsrqst ON wfrqst.rindex = dsrqst.rindex"
+   tables = "wfrqst INNER JOIN dsrqst ON wfrqst.rindex = dsrqst.rindex"
    tname = 'wfrqst'
    hash = PgOPT.TBLHASH[tname]
    PgLOG.pglog("Get request file information from RDADB ...", PgLOG.WARNLG)
@@ -583,7 +583,7 @@ def get_web_files():
 #
 def get_tar_files():
 
-   tables = "tfrqst CROSS JOIN dsrqst ON tfrqst.rindex = dsrqst.rindex"
+   tables = "tfrqst INNER JOIN dsrqst ON tfrqst.rindex = dsrqst.rindex"
    tname = "tfrqst"
    hash = PgOPT.TBLHASH[tname]
    PgLOG.pglog("Get tar file information from RDADB ...", PgLOG.WARNLG)
@@ -1584,7 +1584,7 @@ def build_one_request(ridx, cnd, pgrqst):
 #
 def process_one_partition(pidx, cnd, pgpart, ridx, pgrqst):
 
-   global ERRMSG, CMPCNT
+   global ERRMSG
    ret = 0
    rstat = pgpart['status']
    rtype = pgrqst['rqsttype']
@@ -1826,7 +1826,7 @@ def create_request_directory(pgrqst):
 #
 def call_command(ridx, cnd, cmd, rstr, pgrqst, pidx, pgpart):
 
-   global CMPCNT
+#   global CMPCNT
    rdir = PgRqst.get_file_path(None, pgrqst['rqstid'], pgrqst['location'], 1)
    cret = {}   # a dict to hold return info for this command call
    callcmd = 1
@@ -3025,7 +3025,6 @@ def restore_one_request(ridx):
    pgrec['size_request'] = pgrqst['size_request']
    pgrec['size_input'] = pgrqst['size_input']
    pgrec['fcount'] = pgrqst['fcount']
-   if pgrqst['ptcount'] > 1: pgrec['ptcount'] = 0
    pgrec['status'] = PgOPT.params['RS'][0] if ('RS' in PgOPT.params and PgOPT.params['RS'][0]) else "W"
    pgrec['rqsttype'] = pgrqst['rqsttype']
    pgrec['dsid'] = pgrqst['dsid']
@@ -3047,6 +3046,10 @@ def restore_one_request(ridx):
    if unames:
       lname = PgLOG.convert_chars(unames['lstname'], 'RQST')
       pgrec['rqstid'] = '{}{}'.format(lname.upper(), pgrec['rindex'])
+
+   if((PgRqst.cache_request_control(ridx, pgrec, PgOPT.PGOPT['CACT'], 0) and 
+      (PgOPT.PGOPT['RCNTL']['ptlimit'] or PgOPT.PGOPT['RCNTL']['ptsize']))):
+      pgrec['ptcount'] = 0
 
    return PgDBI.pgadd("dsrqst", pgrec, PgOPT.PGOPT['extlog'])
 
