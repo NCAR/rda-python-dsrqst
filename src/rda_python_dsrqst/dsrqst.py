@@ -1862,7 +1862,7 @@ def call_command(ridx, cnd, cmd, rstr, pgrqst, pidx, pgpart):
             cret['errmsg'] = "{}: Error reget partition record{}".format(rstr, cmddump)
             return cret
          cret['pgpart'] = pgpart = pgrec   # partition record refreshed
-         if pgrec['status'] != 'Q':
+         if pgrec['status'] not in 'OQ':
             cret['errmsg'] = "{}: status Q changed to {}{}".format(rstr, pgrec['status'], cmddump)
             return cret
       else:
@@ -1871,7 +1871,7 @@ def call_command(ridx, cnd, cmd, rstr, pgrqst, pidx, pgpart):
             cret['errmsg'] = "{}: Error reget request record{}".format(rstr, cmddump)
             return cret
          cret['pgrqst'] = pgrqst = pgrec   # request record refreshed
-         if pgrec['status'] != 'Q':
+         if pgrec['status'] not in 'OQ':
             cret['errmsg'] = "{}: status Q changed to {}{}".format(rstr, pgrec['status'], cmddump)
             return cret
 

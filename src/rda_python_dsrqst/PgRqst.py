@@ -1338,7 +1338,7 @@ def fill_request_metrics(ridx, pgpurge):
 # add request info into allusage
 def add_to_allusage(record, time):
 
-   pgrec = PgDBI.pgget("wuser",  "email, org_type, country",
+   pgrec = PgDBI.pgget("wuser",  "email, org_type, country, region",
                        "wuid = {}".format(record['wuid_request']), PgOPT.PGOPT['extlog'])
    if not pgrec: return 0
    pgrec['dsid'] = record['dsid']
@@ -1353,12 +1353,6 @@ def add_to_allusage(record, time):
    pgrec['source'] = 'O'
 
    return PgDBI.add_yearly_allusage(None, pgrec)
-
-#   acnd = (("email = '{}' AND method = '{}' AND ".format(pgrec['email'], pgrec['method'])) +
-#           ("date = '{}' AND time = '{}'".format(pgrec['date'], pgrec['time'])))
-#   if PgDBI.pgget('allusage', '' , acnd): return 1
-#   return PgDBI.pgadd("allusage", pgrec, PgOPT.PGOPT['extlog'])
-
 
 #
 # get request status
