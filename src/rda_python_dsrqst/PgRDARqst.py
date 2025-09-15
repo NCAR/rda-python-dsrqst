@@ -143,7 +143,7 @@ def common_request_info(pgrqst, rqst, logact):
    if 'email' in rqst and rqst['email']: email = rqst['email']
    if not email: email = PgLOG.PGLOG['CURUID'] + "@ucar.edu"
    UNAMES = PgDBI.get_ruser_names(email, 1)
-   if not UNAMES: return "Register {} on https://rda.ucar.edu to subset data request".format(email)
+   if not UNAMES: return f"Please register your email {email} at https://gdex.ucar.edu/dashboard/ to submit a subset data request"
 
    if 'location' in rqst and rqst['location']: wdir = rqst['location']
    if wdir:
@@ -447,7 +447,7 @@ def send_request_email(rqst, msg, logact):
    else:
       receiver = rqst['specialist'] + "@ucar.edu"
 
-   subject =  "{} Request '{}' of {}!".format(rstr, ridx, dsid)
+   subject =  "{} Request '{}' from dataset {}".format(rstr, ridx, dsid)
    uname = "{} ({})".format(UNAMES['name'], rqst['email'])
 
    header = ("A {} Request '{}' is submmited for dataset '{}' ".format(rstr, ridx, dsid) +
@@ -485,19 +485,20 @@ def return_request_message(rqst, success, logact):
    if success:
       msg += ("submitted successfully.\nA summary of your request is given below.\n\n" +
               "Your request will be processed soon. You will be informed via email\n" +
-              "when the data is ready to be picked up.\n" +
-              "\nYou may check request status of data requests you have submitted via " +
-              "the web link\n{}/#ckrqst\n".format(PgLOG.PGLOG['DSSURL']))
+              "when the data are ready for download.\n" +
+              "\nYou may check the processing status of your request in your User Dashboard " +
+              "online at\n{}/dashboard/\n".format(PgLOG.PGLOG['DSSURL'])\n" +
+              "under the \"Customized Data Requests\" section.")
    else:
-      msg += ("DECLINED since you have summitted\na same request already as " +
+      msg += ("DECLINED since you have summitted\nan identical request as " +
               "in the summary shown below.\n")
       if rqst['status'] == "O":
          msg += ("\nYour previous Request ridx is available under\n" +
                  "{} until {}.\n".format(rqst['location'], rqst['date_purge']))
 
-   msg += ("\nIf the information is CORRECT no further action is need.\n" +
+   msg += ("\nIf the information is CORRECT no further action is needed.\n" +
            "If the information is NOT CORRECT, or if you have additional comments\n" +
-           "you may email to {} ({}) with corrections or comments.\n\n".format(email, name))
+           "you may send an email to {} ({}) with questions or comments.\n\n".format(email, name))
 
    return msg
 
