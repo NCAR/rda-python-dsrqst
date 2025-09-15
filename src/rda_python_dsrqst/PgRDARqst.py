@@ -487,8 +487,8 @@ def return_request_message(rqst, success, logact):
               "Your request will be processed soon. You will be informed via email\n" +
               "when the data are ready for download.\n" +
               "\nYou may check the processing status of your request in your User Dashboard " +
-              "online at\n{}/dashboard/\n".format(PgLOG.PGLOG['DSSURL'])\n" +
-              "under the \"Customized Data Requests\" section.")
+              "online at\n{}/dashboard/\n".format(PgLOG.PGLOG['DSSURL']) +
+              "under the \'Customized Data Requests\' section.")
    else:
       msg += ("DECLINED since you have summitted\nan identical request as " +
               "in the summary shown below.\n")
