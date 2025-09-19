@@ -114,7 +114,13 @@ def rda_request(rqst = None, logact = PgLOG.LOGWRN):
    msg = build_request_message(pgrqst, logact)
    send_request_email(pgrqst, msg, logact)
 
-   return return_request_message(pgrqst, 1, logact) + msg
+   response_msg = return_request_message(pgrqst, 1, logact) + msg
+
+   # request submitted, return success message
+   if 'location' in rqst and rqst['location'] and rqst['location'] == "web":
+      return {'message' : response_msg}
+   else:
+      return response_msg
 
 #
 # fill up the common request info
@@ -190,11 +196,11 @@ def common_request_info(pgrqst, rqst, logact):
       break
 
    if pgctl['maxrqst'] > 0:
-      msg = allow_request(rtype, UNAMES, pgctl)
+      msg = allow_request(rtype, UNAMES, pgctl, rqst['location'] if 'location' in rqst and rqst['location'] else None)
       if msg: return msg
 
    if pgctl['maxperiod'] and 'rinfo' in rqst and rqst['rinfo']:
-      msg = valid_request_period(rtype, UNAMES, pgctl, rqst['rinfo'])
+      msg = valid_request_period(rtype, UNAMES, pgctl, rqst['rinfo'], rqst['location'] if 'location' in rqst and rqst['location'] else None)
       if msg: return msg
 
    pgrqst['dsid'] = dsid
@@ -246,7 +252,7 @@ def common_request_info(pgrqst, rqst, logact):
 #
 # check if allow request for the user
 #
-def allow_request(rtype, unames, pgctl):
+def allow_request(rtype, unames, pgctl, location = None):
 
    cnt = PgDBI.pgget("dsrqst", "", "cindex = {} AND email = '{}' AND status <> 'P'".format(pgctl['cindex'], unames['email']))
 
@@ -255,13 +261,23 @@ def allow_request(rtype, unames, pgctl):
    else:
       rstr = PgOPT.request_type(rtype)
       gstr = (" Product" if pgctl['gindex'] else '')
-      return ("{}: Your {} request is denied since you have {} outstanding ".format(unames['name'], rstr, cnt) +
-              "requests already for this Dataset{}. Try later.".format(gstr))
+      if location and location == "web":
+         return {
+            'error': 'Maximum Requests Exceeded',
+            'message': f'Your {rstr} request is denied since you have {cnt} outstanding requests already for this Dataset{gstr} (a maximum of {pgctl["maxrqst"]} is allowed). Please try again later after your other requests have completed processing.',
+            'data': {
+               'max_requests': pgctl['maxrqst'],
+               'current_requests': cnt
+            }
+         }
+      else:
+         return ("{}: Your {} request is denied since you have {} outstanding ".format(unames['name'], rstr, cnt) +
+              "requests already for this Dataset{}. Please try again later after your other requests have completed processing.".format(gstr))
 
 #
 # check if a request temporal period is not exceeding the limit
 #
-def valid_request_period(rtype, unames, pgctl, rinfo):
+def valid_request_period(rtype, unames, pgctl, rinfo, location = None):
 
    dates = None
    ms = re.search(r'dates=(\d+-\d+-\d+)( | \d+:\d+ )(\d+-\d+-\d+)', rinfo)
@@ -298,9 +314,20 @@ def valid_request_period(rtype, unames, pgctl, rinfo):
    pstr = "{} {}{}".format(val, unit, ('s' if val > 1 else ''))
    rstr = PgOPT.request_type(rtype)
    gstr = (" Product" if pgctl['gindex'] else '')
-   return ("{}: Your {} request period, ".format(unames['name'], rstr) +
+   if location and location == "web":
+      return {
+         'error': 'Request Period Exceeded',
+         'message': f'Your {rstr} request period, {dates[0]} - {dates[1]}, is longer than {pstr} for this Dataset{gstr}. Please choose a shorter data period.',
+         'data': {
+            'request_start_date': dates[0],
+            'request_end_date': dates[1],
+            'maximum_period': pstr
+         }
+      }
+   else:
+      return ("{}: Your {} request period, ".format(unames['name'], rstr) +
            "{} - {}, is longer than {} for ".format(dates[0], dates[1], pstr) +
-           "this Dataset{}. Try a shorter data period.".format(gstr))
+           "this Dataset{}. Please choose a shorter data period.".format(gstr))
 
 #
 # process and fill up the detail request info based on the request type
@@ -381,7 +408,7 @@ def new_request_id(logact):
 #
 # check if the same request was submitted already
 #
-def subset_request_submitted(rqst, logact):
+def subset_request_submitted(rqst, logact, location = None):
 
    pgrqst = PgDBI.pgget("dsrqst", "*", "dsid = '{}' AND gindex = {} ".format(rqst['dsid'], rqst['gindex']) +
                         "AND rqsttype = '{}' AND email = '{}' ".format(rqst['rqsttype'], rqst['email']) +
@@ -389,7 +416,18 @@ def subset_request_submitted(rqst, logact):
    if not pgrqst: return None
 
    msg = build_request_message(pgrqst, logact)
-   return return_request_message(pgrqst, 0, logact) + msg
+   response_msg = return_request_message(pgrqst, 0, logact) + msg
+   if location and location == "web":
+      return {
+         'error' : 'Duplicate Request', 
+         'message' : response_msg, 
+         'data': {
+            'rindex': pgrqst['rindex'],
+            'date_purge': pgrqst['date_purge']
+         }
+      }
+   else:
+      return response_msg
 
 #
 # build a string message for a submitted request
@@ -489,11 +527,11 @@ def return_request_message(rqst, success, logact):
               "\nYou may check request status of data requests you have submitted via " +
               "the web link\n{}/#ckrqst\n".format(PgLOG.PGLOG['DSSURL']))
    else:
-      msg += ("DECLINED since you have summitted\na same request already as " +
+      msg += ("DECLINED since you have summitted\na duplicate request as " +
               "in the summary shown below.\n")
       if rqst['status'] == "O":
-         msg += ("\nYour previous Request ridx is available under\n" +
-                 "{} until {}.\n".format(rqst['location'], rqst['date_purge']))
+         msg += ("\nYour previous Request {} is available under\n" +
+                 "{} until {}.\n".format(rqst['rindex'], rqst['location'], rqst['date_purge']))
 
    msg += ("\nIf the information is CORRECT no further action is need.\n" +
            "If the information is NOT CORRECT, or if you have additional comments\n" +
