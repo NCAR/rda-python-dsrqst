@@ -420,6 +420,7 @@ def subset_request_submitted(rqst, logact, location = None):
    response_msg = return_request_message(pgrqst, 0, logact, location)
 
    if type(response_msg) == dict:
+      response_msg['summary'] = msg
       response_msg['data'].update({
          'date_purge': pgrqst['date_purge']
       })
