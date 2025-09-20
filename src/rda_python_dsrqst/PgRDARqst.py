@@ -118,6 +118,7 @@ def rda_request(rqst = None, logact = PgLOG.LOGWRN):
 
    # request submitted, return success message
    if 'location' in rqst and rqst['location'] and rqst['location'] == "web":
+      # return as a dict for django web requests
       return {'message' : response_msg}
    else:
       return response_msg
@@ -263,7 +264,7 @@ def allow_request(rtype, unames, pgctl, location = None):
       gstr = (" Product" if pgctl['gindex'] else '')
       if location and location == "web":
          return {
-            'error': 'Maximum Requests Exceeded',
+            'error': 'Too Many Requests',
             'message': f'Your {rstr} request is denied since you have {cnt} outstanding requests already for this Dataset{gstr} (a maximum of {pgctl["maxrqst"]} is allowed). Please try again later after your other requests have completed processing.',
             'data': {
                'max_requests': pgctl['maxrqst'],
