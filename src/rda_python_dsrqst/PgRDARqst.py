@@ -120,6 +120,7 @@ def rda_request(rqst = None, logact = PgLOG.LOGWRN):
    if type(msg) == str:
       return response_msg + msg
    else:
+      response_msg['summary'] = msg
       return response_msg
 
 #
