@@ -417,7 +417,7 @@ def subset_request_submitted(rqst, logact, location = None):
 
    msg = build_request_message(pgrqst, logact)
    response_msg = return_request_message(pgrqst, 0, logact, location)
-   
+
    if type(response_msg) == dict:
       response_msg['data'].update({
          'date_purge': pgrqst['date_purge']
@@ -457,7 +457,7 @@ def build_request_message(rqst, logact):
    else:
       desc = None
 
-   if desc: buf += "Request Detail:\n{}\n".format(PgLOG.break_long_string(desc))
+   if desc: buf += "\nRequest Detail:\n{}\n".format(PgLOG.break_long_string(desc))
 
    if 'fcount' in rqst and rqst['fcount'] and 'size_input' in rqst and rqst['size_input']:
       s = 's' if rqst['fcount'] > 1 else ''
