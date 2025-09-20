@@ -114,12 +114,11 @@ def rda_request(rqst = None, logact = PgLOG.LOGWRN):
    msg = build_request_message(pgrqst, logact)
    send_request_email(pgrqst, msg, logact)
 
-   response_msg = return_request_message(pgrqst, 1, logact) + msg
+   response_msg = return_request_message(pgrqst, 1, logact, rqst['location'] if 'location' in rqst and rqst['location'] else None)
 
    # request submitted, return success message
-   if 'location' in rqst and rqst['location'] and rqst['location'] == "web":
-      # return as a dict for django web requests
-      return {'message' : response_msg}
+   if type(msg) == str:
+      return response_msg + msg
    else:
       return response_msg
 
@@ -417,18 +416,15 @@ def subset_request_submitted(rqst, logact, location = None):
    if not pgrqst: return None
 
    msg = build_request_message(pgrqst, logact)
-   response_msg = return_request_message(pgrqst, 0, logact) + msg
-   if location and location == "web":
-      return {
-         'error' : 'Duplicate Request', 
-         'message' : response_msg, 
-         'data': {
-            'rindex': pgrqst['rindex'],
-            'date_purge': pgrqst['date_purge']
-         }
-      }
-   else:
+   response_msg = return_request_message(pgrqst, 0, logact, location)
+   
+   if type(response_msg) == dict:
+      response_msg['data'].update({
+         'date_purge': pgrqst['date_purge']
+      })
       return response_msg
+   else:
+      return response_msg + msg
 
 #
 # build a string message for a submitted request
@@ -509,7 +505,7 @@ def send_request_email(rqst, msg, logact):
 #
 # create and return the request message back to caller
 #
-def return_request_message(rqst, success, logact):
+def return_request_message(rqst, success, logact, location = None):
 
    ridx = rqst['rindex']
    dsid = rqst['dsid']
@@ -519,6 +515,7 @@ def return_request_message(rqst, success, logact):
    email = name + "@ucar.edu"
    rec = PgDBI.pgget("dssgrp", "lstname, fstname", "logname = '{}'".format(name), logact)
    if rec: name = "{} {}".format(rec['fstname'], rec['lstname'])
+   error = None
 
    msg = "{}:\n\nYour {} request has been ".format(title, rstr)
    if success:
@@ -534,12 +531,25 @@ def return_request_message(rqst, success, logact):
       if rqst['status'] == "O":
          msg += ("\nYour previous Request {} is available under\n" +
                  "{} until {}.\n".format(rqst['rindex'], rqst['location'], rqst['date_purge']))
+      error = "Duplicate Request"
 
    msg += ("\nIf the information is CORRECT no further action is needed.\n" +
            "If the information is NOT CORRECT, or if you have additional comments\n" +
            "you may send an email to {} ({}) with questions or comments.\n\n".format(email, name))
 
-   return msg
+   if location and location == "web":
+      response_msg = {
+         'message': msg,
+         'data': {
+            'rindex': ridx,
+            'rstr': rstr,
+            'title': title,
+         }
+      }
+      if error: response_msg['error'] = error
+      return response_msg
+   else:
+      return msg
 
 #
 # Function rda_request_status(ridx  - Request Index)
