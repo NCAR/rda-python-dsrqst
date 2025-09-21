@@ -264,7 +264,10 @@ def allow_request(rtype, unames, pgctl, location = None):
       gstr = (" Product" if pgctl['gindex'] else '')
       if location and location == "web":
          return {
-            'error': 'Too Many Requests',
+            'error': {
+               'code': 'too_many_requests',
+               'message': f'Too many outstanding requests'
+            },
             'message': f'Your {rstr} request is denied since you have {cnt} outstanding requests already for this Dataset{gstr} (a maximum of {pgctl["maxrqst"]} is allowed). Please try again later after your other requests have completed processing.',
             'data': {
                'max_requests': pgctl['maxrqst'],
@@ -317,7 +320,10 @@ def valid_request_period(rtype, unames, pgctl, rinfo, location = None):
    gstr = (" Product" if pgctl['gindex'] else '')
    if location and location == "web":
       return {
-         'error': 'Request Period Exceeded',
+         'error': {
+            'code': 'request_period_exceeded',
+            'message': 'Request Period Exceeded'
+         },
          'message': f'Your {rstr} request period, {dates[0]} - {dates[1]}, is longer than {pstr} for this Dataset{gstr}. Please choose a shorter data period.',
          'data': {
             'request_start_date': dates[0],
@@ -548,7 +554,10 @@ def return_request_message(rqst, success, logact, location = None):
             'title': title,
          }
       }
-      if error: response_msg['error'] = error
+      if error: response_msg['error'] = {
+         'code': 'duplicate_request',
+         'message': error
+         }
       return response_msg
    else:
       return msg
