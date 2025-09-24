@@ -1992,7 +1992,7 @@ def call_command(ridx, cnd, cmd, rstr, pgrqst, pidx, pgpart):
             if pgrec['type'] == 'D': dtype = 1
             if lastcmd:
                ffmt = pgrec['file_format']
-               if ostat and pgrec['tindex'] > 0:
+               if ostat and tinfo and pgrec['tindex'] > 0:
                   msg = build_tarfile(tinfo, fidx, wfile, pgrec['size'], ffmt, pgrec['tindex'])
                   if msg:
                      if emlcnt < EMLMAX or (i+1) == cnt: errmsg += "\n" + msg
