@@ -238,9 +238,8 @@ def common_request_info(pgrqst, rqst, logact):
 
    # set other request info
    hash = {'sflag' : "subflag", 'tflag' : "tarflag", 'dfmt' : "data_format", 'afmt' : "file_format", 'enote' : "enotice"}
-   for key in hash:
-      fld = hash[key]
-      if key in rqst and rqst[fld]:
+   for key, fld in hash.items():
+      if key in rqst and rqst[key]:
          pgrqst[fld] = rqst[key]
       elif fld in pgctl and pgctl[fld]:
          pgrqst[fld] = pgctl[fld]
