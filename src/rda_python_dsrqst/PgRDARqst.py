@@ -117,7 +117,7 @@ def rda_request(rqst = None, logact = PgLOG.LOGWRN):
    response_msg = return_request_message(pgrqst, 1, logact, rqst['location'] if 'location' in rqst and rqst['location'] else None)
 
    # request submitted, return success message
-   if type(msg) == str:
+   if type(response_msg) == str:
       return response_msg + msg
    else:
       response_msg['summary'] = msg
