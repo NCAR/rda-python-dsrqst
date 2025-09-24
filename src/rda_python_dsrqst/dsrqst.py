@@ -649,7 +649,7 @@ def set_request_info():
          cnd = "rindex = {}".format(ridx)
          pgrec = PgDBI.pgget(tname, "*", cnd, PgOPT.PGOPT['extlog'])
          if pgrec:
-            if 'MD' not in PgOPT.params and pgrec['specialist'] != PgOPT.params['LN'] and PgOPT.params['LN'] != PgLOG.PGLOG['RDAUSER']:
+            if 'MD' not in PgOPT.params and pgrec['specialist'] != PgOPT.params['LN'] and PgOPT.params['LN'] != PgLOG.PGLOG['GDEXUSER']:
                PgOPT.action_error("{}: Must be '{}' to set request index {}".format(PgOPT.params['LN'], pgrec['specialist'], cnd))
             if 'GU' in PgOPT.params:
                if "POH".find(pgrec['status']) > -1:
@@ -702,7 +702,7 @@ def set_request_info():
          else:
             if 'specialist' not in record:
                record['specialist'] = PgOPT.params['LN']
-            elif 'MD' not in PgOPT.params and record['specialist'] != PgOPT.params['LN'] and PgOPT.params['LN'] != PgLOG.PGLOG['RDAUSER']:
+            elif 'MD' not in PgOPT.params and record['specialist'] != PgOPT.params['LN'] and PgOPT.params['LN'] != PgLOG.PGLOG['GDEXUSER']:
                PgOPT.action_error("Must be '{}' to add request record".format(record['specialist']))
             if 'rqsttype' not in record: record['rqsttype'] = "C"  # default to customized request type
             nidx = new_request_id()
@@ -814,7 +814,7 @@ def set_request_control():
          cnd = "cindex = {}".format(cidx)
          pgrec = PgDBI.pgget(tname, "*", cnd, PgOPT.PGOPT['extlog'])
          if not pgrec: PgOPT.action_error("Miss control record for " + cnd)
-         if 'MD' not in PgOPT.params and pgrec['specialist'] != PgOPT.params['LN'] and PgOPT.params['LN'] != PgLOG.PGLOG['RDAUSER']:
+         if 'MD' not in PgOPT.params and pgrec['specialist'] != PgOPT.params['LN'] and PgOPT.params['LN'] != PgLOG.PGLOG['GDEXUSER']:
             PgOPT.action_error("{}: Must be '{}' to set reuqest control {}".format(PgOPT.params['LN'], pgrec['specialist'], cnd))
       else:
          pgrec  = None
@@ -842,7 +842,7 @@ def set_request_control():
 
             if 'specialist' not in record:
                record['specialist'] = PgOPT.params['LN']
-            elif 'MD' not in PgOPT.params and record['specialist'] != PgOPT.params['LN'] and PgOPT.params['LN'] != PgLOG.PGLOG['RDAUSER']:
+            elif 'MD' not in PgOPT.params and record['specialist'] != PgOPT.params['LN'] and PgOPT.params['LN'] != PgLOG.PGLOG['GDEXUSER']:
                PgOPT.action_error("{}: Must be '{}' to add request control record".format(PgOPT.params['LN'], record['specialist']))
             cidx = PgDBI.pgadd(tname, record, PgOPT.PGOPT['extlog']|PgLOG.AUTOID)
             if cidx:
@@ -1992,7 +1992,7 @@ def call_command(ridx, cnd, cmd, rstr, pgrqst, pidx, pgpart):
             if pgrec['type'] == 'D': dtype = 1
             if lastcmd:
                ffmt = pgrec['file_format']
-               if ostat and pgrec['tindex'] > 0:
+               if ostat and tinfo and pgrec['tindex'] > 0:
                   msg = build_tarfile(tinfo, fidx, wfile, pgrec['size'], ffmt, pgrec['tindex'])
                   if msg:
                      if emlcnt < EMLMAX or (i+1) == cnt: errmsg += "\n" + msg
