@@ -46,6 +46,7 @@ USG = (
 "   'command' : RequestCommand (optional, command different from the one in request control)\n" +
 " 'validsubset' : ValidationCommand (optional, command to validate rinfo at subset submission time)\n" +
 "  'location' : RequestLocation (optional, default to current working directory)\n" +
+"  'fromflag' : RequestFromFlag (optional, default to 'C' - command line; 'W' - web request)\n" +
 "   'rinfo'   : RequesInfo (detail request information, mandatory for subset request)\n" +
 "   'rnote'   : RequestNote (optional, readable version of 'rinfo')\n\n" +
 "     logact - optional logging action flag, PgLOG.LOGWRN as default.\n\n" +
@@ -114,7 +115,7 @@ def rda_request(rqst = None, logact = PgLOG.LOGWRN):
    msg = build_request_message(pgrqst, logact)
    send_request_email(pgrqst, msg, logact)
 
-   response_msg = return_request_message(pgrqst, 1, logact, rqst['location'] if 'location' in rqst and rqst['location'] else None)
+   response_msg = return_request_message(pgrqst, 1, logact)
 
    # request submitted, return success message
    if type(response_msg) == str:
@@ -197,11 +198,11 @@ def common_request_info(pgrqst, rqst, logact):
       break
 
    if pgctl['maxrqst'] > 0:
-      msg = allow_request(rtype, UNAMES, pgctl, rqst['location'] if 'location' in rqst and rqst['location'] else None)
+      msg = allow_request(rtype, UNAMES, pgctl, rqst['fromflag'] if 'fromflag' in rqst else 'C')
       if msg: return msg
 
    if pgctl['maxperiod'] and 'rinfo' in rqst and rqst['rinfo']:
-      msg = valid_request_period(rtype, UNAMES, pgctl, rqst['rinfo'], rqst['location'] if 'location' in rqst and rqst['location'] else None)
+      msg = valid_request_period(rtype, UNAMES, pgctl, rqst['rinfo'], rqst['fromflag'] if 'fromflag' in rqst else 'C')
       if msg: return msg
 
    pgrqst['dsid'] = dsid
@@ -252,7 +253,7 @@ def common_request_info(pgrqst, rqst, logact):
 #
 # check if allow request for the user
 #
-def allow_request(rtype, unames, pgctl, location = None):
+def allow_request(rtype, unames, pgctl, fromflag = None):
 
    cnt = PgDBI.pgget("dsrqst", "", "cindex = {} AND email = '{}' AND status <> 'P'".format(pgctl['cindex'], unames['email']))
 
@@ -261,7 +262,7 @@ def allow_request(rtype, unames, pgctl, location = None):
    else:
       rstr = PgOPT.request_type(rtype)
       gstr = (" Product" if pgctl['gindex'] else '')
-      if location and location == "web":
+      if fromflag and fromflag == "W":
          return {
             'error': {
                'code': 'too_many_requests',
@@ -280,7 +281,7 @@ def allow_request(rtype, unames, pgctl, location = None):
 #
 # check if a request temporal period is not exceeding the limit
 #
-def valid_request_period(rtype, unames, pgctl, rinfo, location = None):
+def valid_request_period(rtype, unames, pgctl, rinfo, fromflag = None):
 
    dates = None
    ms = re.search(r'dates=(\d+-\d+-\d+)( | \d+:\d+ )(\d+-\d+-\d+)', rinfo)
@@ -317,7 +318,7 @@ def valid_request_period(rtype, unames, pgctl, rinfo, location = None):
    pstr = "{} {}{}".format(val, unit, ('s' if val > 1 else ''))
    rstr = PgOPT.request_type(rtype)
    gstr = (" Product" if pgctl['gindex'] else '')
-   if location and location == "web":
+   if fromflag and fromflag == "W":
       return {
          'error': {
             'code': 'request_period_exceeded',
@@ -414,7 +415,7 @@ def new_request_id(logact):
 #
 # check if the same request was submitted already
 #
-def subset_request_submitted(rqst, logact, location = None):
+def subset_request_submitted(rqst, logact):
 
    pgrqst = PgDBI.pgget("dsrqst", "*", "dsid = '{}' AND gindex = {} ".format(rqst['dsid'], rqst['gindex']) +
                         "AND rqsttype = '{}' AND email = '{}' ".format(rqst['rqsttype'], rqst['email']) +
@@ -422,7 +423,7 @@ def subset_request_submitted(rqst, logact, location = None):
    if not pgrqst: return None
 
    msg = build_request_message(pgrqst, logact)
-   response_msg = return_request_message(pgrqst, 0, logact, location)
+   response_msg = return_request_message(pgrqst, 0, logact)
 
    if type(response_msg) == dict:
       response_msg['summary'] = msg
@@ -512,7 +513,7 @@ def send_request_email(rqst, msg, logact):
 #
 # create and return the request message back to caller
 #
-def return_request_message(rqst, success, logact, location = None):
+def return_request_message(rqst, success, logact):
 
    ridx = rqst['rindex']
    dsid = rqst['dsid']
@@ -544,7 +545,8 @@ def return_request_message(rqst, success, logact, location = None):
            "If the information is NOT CORRECT, or if you have additional comments\n" +
            "you may send an email to {} ({}) with questions or comments.\n\n".format(email, name))
 
-   if location and location == "web":
+   if 'fromflag' in rqst and rqst['fromflag'] == "W":
+      # return a dictionary array if from web request
       response_msg = {
          'message': msg,
          'data': {
@@ -559,6 +561,7 @@ def return_request_message(rqst, success, logact, location = None):
          }
       return response_msg
    else:
+      # return a string message if from command line or other
       return msg
 
 #
