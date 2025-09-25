@@ -46,6 +46,7 @@ USG = (
 "   'command' : RequestCommand (optional, command different from the one in request control)\n" +
 " 'validsubset' : ValidationCommand (optional, command to validate rinfo at subset submission time)\n" +
 "  'location' : RequestLocation (optional, default to current working directory)\n" +
+"  'fromflag' : RequestFromFlag (optional, default to 'C' - command line; 'W' - web request)\n" +
 "   'rinfo'   : RequesInfo (detail request information, mandatory for subset request)\n" +
 "   'rnote'   : RequestNote (optional, readable version of 'rinfo')\n\n" +
 "     logact - optional logging action flag, PgLOG.LOGWRN as default.\n\n" +
@@ -114,7 +115,14 @@ def rda_request(rqst = None, logact = PgLOG.LOGWRN):
    msg = build_request_message(pgrqst, logact)
    send_request_email(pgrqst, msg, logact)
 
-   return return_request_message(pgrqst, 1, logact) + msg
+   response_msg = return_request_message(pgrqst, 1, logact)
+
+   # request submitted, return success message
+   if type(response_msg) == str:
+      return response_msg + msg
+   else:
+      response_msg['summary'] = msg
+      return response_msg
 
 #
 # fill up the common request info
@@ -143,7 +151,7 @@ def common_request_info(pgrqst, rqst, logact):
    if 'email' in rqst and rqst['email']: email = rqst['email']
    if not email: email = PgLOG.PGLOG['CURUID'] + "@ucar.edu"
    UNAMES = PgDBI.get_ruser_names(email, 1)
-   if not UNAMES: return "Register {} on https://rda.ucar.edu to subset data request".format(email)
+   if not UNAMES: return f"Please register your email {email} at https://gdex.ucar.edu/dashboard/ to submit a data request."
 
    if 'location' in rqst and rqst['location']: wdir = rqst['location']
    if wdir:
@@ -190,11 +198,11 @@ def common_request_info(pgrqst, rqst, logact):
       break
 
    if pgctl['maxrqst'] > 0:
-      msg = allow_request(rtype, UNAMES, pgctl)
+      msg = allow_request(rtype, UNAMES, pgctl, rqst['fromflag'] if 'fromflag' in rqst else 'C')
       if msg: return msg
 
    if pgctl['maxperiod'] and 'rinfo' in rqst and rqst['rinfo']:
-      msg = valid_request_period(rtype, UNAMES, pgctl, rqst['rinfo'])
+      msg = valid_request_period(rtype, UNAMES, pgctl, rqst['rinfo'], rqst['fromflag'] if 'fromflag' in rqst else 'C')
       if msg: return msg
 
    pgrqst['dsid'] = dsid
@@ -231,9 +239,8 @@ def common_request_info(pgrqst, rqst, logact):
 
    # set other request info
    hash = {'sflag' : "subflag", 'tflag' : "tarflag", 'dfmt' : "data_format", 'afmt' : "file_format", 'enote' : "enotice"}
-   for key in hash:
-      fld = hash[key]
-      if key in rqst and rqst[fld]:
+   for key, fld in hash.items():
+      if key in rqst and rqst[key]:
          pgrqst[fld] = rqst[key]
       elif fld in pgctl and pgctl[fld]:
          pgrqst[fld] = pgctl[fld]
@@ -246,7 +253,7 @@ def common_request_info(pgrqst, rqst, logact):
 #
 # check if allow request for the user
 #
-def allow_request(rtype, unames, pgctl):
+def allow_request(rtype, unames, pgctl, fromflag = None):
 
    cnt = PgDBI.pgget("dsrqst", "", "cindex = {} AND email = '{}' AND status <> 'P'".format(pgctl['cindex'], unames['email']))
 
@@ -255,13 +262,26 @@ def allow_request(rtype, unames, pgctl):
    else:
       rstr = PgOPT.request_type(rtype)
       gstr = (" Product" if pgctl['gindex'] else '')
-      return ("{}: Your {} request is denied since you have {} outstanding ".format(unames['name'], rstr, cnt) +
-              "requests already for this Dataset{}. Try later.".format(gstr))
+      if fromflag and fromflag == "W":
+         return {
+            'error': {
+               'code': 'too_many_requests',
+               'message': f'Too many outstanding requests'
+            },
+            'message': f'Your {rstr} request is denied since you have {cnt} outstanding requests already for this Dataset{gstr} (a maximum of {pgctl["maxrqst"]} is allowed). Please try again later after your other requests have completed processing.',
+            'data': {
+               'max_requests': pgctl['maxrqst'],
+               'current_requests': cnt
+            }
+         }
+      else:
+         return ("{}: Your {} request is denied since you have {} outstanding ".format(unames['name'], rstr, cnt) +
+              "requests already for this Dataset{}. Please try again later after your other requests have completed processing.".format(gstr))
 
 #
 # check if a request temporal period is not exceeding the limit
 #
-def valid_request_period(rtype, unames, pgctl, rinfo):
+def valid_request_period(rtype, unames, pgctl, rinfo, fromflag = None):
 
    dates = None
    ms = re.search(r'dates=(\d+-\d+-\d+)( | \d+:\d+ )(\d+-\d+-\d+)', rinfo)
@@ -298,9 +318,23 @@ def valid_request_period(rtype, unames, pgctl, rinfo):
    pstr = "{} {}{}".format(val, unit, ('s' if val > 1 else ''))
    rstr = PgOPT.request_type(rtype)
    gstr = (" Product" if pgctl['gindex'] else '')
-   return ("{}: Your {} request period, ".format(unames['name'], rstr) +
+   if fromflag and fromflag == "W":
+      return {
+         'error': {
+            'code': 'request_period_exceeded',
+            'message': 'Request Period Exceeded'
+         },
+         'message': f'Your {rstr} request period, {dates[0]} - {dates[1]}, is longer than {pstr} for this Dataset{gstr}. Please choose a shorter data period.',
+         'data': {
+            'request_start_date': dates[0],
+            'request_end_date': dates[1],
+            'maximum_period': pstr
+         }
+      }
+   else:
+      return ("{}: Your {} request period, ".format(unames['name'], rstr) +
            "{} - {}, is longer than {} for ".format(dates[0], dates[1], pstr) +
-           "this Dataset{}. Try a shorter data period.".format(gstr))
+           "this Dataset{}. Please choose a shorter data period.".format(gstr))
 
 #
 # process and fill up the detail request info based on the request type
@@ -389,7 +423,16 @@ def subset_request_submitted(rqst, logact):
    if not pgrqst: return None
 
    msg = build_request_message(pgrqst, logact)
-   return return_request_message(pgrqst, 0, logact) + msg
+   response_msg = return_request_message(pgrqst, 0, logact)
+
+   if type(response_msg) == dict:
+      response_msg['summary'] = msg
+      response_msg['data'].update({
+         'date_purge': pgrqst['date_purge']
+      })
+      return response_msg
+   else:
+      return response_msg + msg
 
 #
 # build a string message for a submitted request
@@ -422,7 +465,7 @@ def build_request_message(rqst, logact):
    else:
       desc = None
 
-   if desc: buf += "Request Detail:\n{}\n".format(PgLOG.break_long_string(desc))
+   if desc: buf += "\nRequest Detail:\n{}\n".format(PgLOG.break_long_string(desc))
 
    if 'fcount' in rqst and rqst['fcount'] and 'size_input' in rqst and rqst['size_input']:
       s = 's' if rqst['fcount'] > 1 else ''
@@ -447,7 +490,7 @@ def send_request_email(rqst, msg, logact):
    else:
       receiver = rqst['specialist'] + "@ucar.edu"
 
-   subject =  "{} Request '{}' of {}!".format(rstr, ridx, dsid)
+   subject =  "{} Request '{}' from dataset {}".format(rstr, ridx, dsid)
    uname = "{} ({})".format(UNAMES['name'], rqst['email'])
 
    header = ("A {} Request '{}' is submmited for dataset '{}' ".format(rstr, ridx, dsid) +
@@ -480,26 +523,46 @@ def return_request_message(rqst, success, logact):
    email = name + "@ucar.edu"
    rec = PgDBI.pgget("dssgrp", "lstname, fstname", "logname = '{}'".format(name), logact)
    if rec: name = "{} {}".format(rec['fstname'], rec['lstname'])
+   error = None
 
    msg = "{}:\n\nYour {} request has been ".format(title, rstr)
    if success:
       msg += ("submitted successfully.\nA summary of your request is given below.\n\n" +
               "Your request will be processed soon. You will be informed via email\n" +
-              "when the data is ready to be picked up.\n" +
-              "\nYou may check request status of data requests you have submitted via " +
-              "the web link\n{}/#ckrqst\n".format(PgLOG.PGLOG['DSSURL']))
+              "when the data are ready to be downloaded.\n" +
+              "\nYou may check the progress of your request in your User Dashboard " +
+              "online at\n{}/dashboard/\n".format(PgLOG.PGLOG['DSSURL']) +
+              "under the 'Customized Data Requests' section.")
    else:
-      msg += ("DECLINED since you have summitted\na same request already as " +
+      msg += ("DECLINED since you have summitted\na duplicate request as " +
               "in the summary shown below.\n")
       if rqst['status'] == "O":
-         msg += ("\nYour previous Request ridx is available under\n" +
-                 "{} until {}.\n".format(rqst['location'], rqst['date_purge']))
+         msg += ("\nYour previous Request {} is available under\n" +
+                 "{} until {}.\n".format(rqst['rindex'], rqst['location'], rqst['date_purge']))
+      error = "Duplicate Request"
 
-   msg += ("\nIf the information is CORRECT no further action is need.\n" +
+   msg += ("\nIf the information is CORRECT no further action is needed.\n" +
            "If the information is NOT CORRECT, or if you have additional comments\n" +
-           "you may email to {} ({}) with corrections or comments.\n\n".format(email, name))
+           "you may send an email to {} ({}) with questions or comments.\n\n".format(email, name))
 
-   return msg
+   if 'fromflag' in rqst and rqst['fromflag'] == "W":
+      # return a dictionary array if from web request
+      response_msg = {
+         'message': msg,
+         'data': {
+            'rindex': ridx,
+            'rstr': rstr,
+            'title': title,
+         }
+      }
+      if error: response_msg['error'] = {
+         'code': 'duplicate_request',
+         'message': error
+         }
+      return response_msg
+   else:
+      # return a string message if from command line or other
+      return msg
 
 #
 # Function rda_request_status(ridx  - Request Index)
