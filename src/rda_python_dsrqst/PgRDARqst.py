@@ -385,7 +385,7 @@ def valid_request_info(dsid, rinfo, logact):
 def add_request_record(pgrqst, logact):
    
    nidx = new_request_id(logact)
-   lname = PgLOG.convert_chars(UNAMES['lstname'], 'RQST').upper()
+   lname = PgLOG.convert_chars(UNAMES.get('lstname', None), 'RQST').upper()
    pgrqst['rqstid'] = "{}{}".format(lname, nidx)   # set request ID
    (pgrqst['date_rqst'], pgrqst['time_rqst']) = PgUtil.get_date_time()
    ridx = PgDBI.pgadd("dsrqst", pgrqst, logact|PgLOG.EXITLG|PgLOG.AUTOID|PgLOG.DODFLT)
