@@ -491,6 +491,7 @@ def send_request_email(rqst, msg, logact):
    #else:
    #   receiver = rqst['specialist'] + "@ucar.edu"
 
+   PgLOG.PGLOG['CCDADDR'] = ''
    receiver = rqst['specialist'] + "@ucar.edu"
 
    subject =  "{} Request '{}' from dataset {}".format(rstr, ridx, dsid)
