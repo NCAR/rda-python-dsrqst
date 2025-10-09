@@ -484,11 +484,14 @@ def send_request_email(rqst, msg, logact):
    dsid = rqst['dsid']
    rstr = PgOPT.request_type(rqst['rqsttype'])
    PgLOG.add_carbon_copy(CCEMAIL, 1, "", rqst['specialist'])
-   if PgLOG.PGLOG['CCDADDR']:
-      receiver = PgLOG.PGLOG['CCDADDR']
-      PgLOG.PGLOG['CCDADDR'] = ''
-   else:
-      receiver = rqst['specialist'] + "@ucar.edu"
+
+   # if PgLOG.PGLOG['CCDADDR']:
+   #   receiver = PgLOG.PGLOG['CCDADDR']
+   #   PgLOG.PGLOG['CCDADDR'] = ''
+   #else:
+   #   receiver = rqst['specialist'] + "@ucar.edu"
+
+   receiver = rqst['specialist'] + "@ucar.edu"
 
    subject =  "{} Request '{}' from dataset {}".format(rstr, ridx, dsid)
    uname = "{} ({})".format(UNAMES['name'], rqst['email'])
