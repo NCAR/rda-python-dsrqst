@@ -483,16 +483,13 @@ def send_request_email(rqst, msg, logact):
    ridx = rqst['rindex']
    dsid = rqst['dsid']
    rstr = PgOPT.request_type(rqst['rqsttype'])
+   sender = "gdexdata@ucar.edu"
    PgLOG.add_carbon_copy(CCEMAIL, 1, "", rqst['specialist'])
 
-   # if PgLOG.PGLOG['CCDADDR']:
-   #   receiver = PgLOG.PGLOG['CCDADDR']
-   #   PgLOG.PGLOG['CCDADDR'] = ''
-   #else:
-   #   receiver = rqst['specialist'] + "@ucar.edu"
-
-   PgLOG.PGLOG['CCDADDR'] = ''
-   receiver = rqst['specialist'] + "@ucar.edu"
+   if PgLOG.PGLOG['CCDADDR']:
+      receiver = PgLOG.PGLOG['CCDADDR']
+   else:
+      receiver = rqst['specialist'] + "@ucar.edu"
 
    subject =  "{} Request '{}' from dataset {}".format(rstr, ridx, dsid)
    uname = "{} ({})".format(UNAMES['name'], rqst['email'])
@@ -512,7 +509,7 @@ def send_request_email(rqst, msg, logact):
                  "remove the request from RDADB and please, for courtsey, reply " +
                  "this email to explain why this Request is refused.\n\n")
 
-   PgLOG.send_email(subject, receiver, header + msg, rqst['email'], PgLOG.LOGWRN)
+   PgLOG.send_email(subject, receiver, header + msg, sender, PgLOG.LOGWRN)
 
 #
 # create and return the request message back to caller
