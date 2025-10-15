@@ -162,40 +162,12 @@ def common_request_info(pgrqst, rqst, logact):
    else:
       wdir = os.getcwd()
 
-   gcnd = "dsid = '{}' AND gindex = {}".format(dsid, gindex)
-   if rtype == "T" or rtype == "S":
-      tcnd = " AND (rqsttype = 'T' OR rqsttype = 'S')"
-      ocnd = " ORDER BY rqsttype DESC"
-   else:
-      tcnd = " AND rqsttype = '{}'".format(rtype)
-      ocnd = ""
-
    msg = dsid
-   if gindex: msg += "_{}".format(gindex)
+   if gindex: msg += f"_{gindex}"
 
-   i = 0
-   while True:
-      cnd = gcnd + tcnd + ocnd
-      pgctl = PgDBI.pgget("rcrqst", "*", cnd, logact)
-      if not pgctl:
-         if gindex:
-            pgrec = PgDBI.pgget("dsgroup", "pindex", gcnd, logact)
-            if pgrec:
-               gindex = pgrec['pindex']
-               gcnd = "dsid = '{}' AND gindex = {}".format(dsid, gindex)
-               i += 1
-               continue
-         elif i == 0:
-            if ocnd:
-               ocnd += ", gindex"
-            else:
-               ocnd = " ORDER BY gindex"
-            gcnd = "dsid = '{}'".format(dsid)
-            i += 1
-            continue
-
-         return PgLOG.pglog(msg + ": NO Request Control record found", logact|PgLOG.RETMSG)
-      break
+   pgctl = get_rqst_control(dsid, gindex, rtype, logact)
+   if not pgctl:
+      return PgLOG.pglog(msg + ": NO Request Control record found", logact|PgLOG.RETMSG)
 
    if pgctl['maxrqst'] > 0:
       msg = allow_request(rtype, UNAMES, pgctl, rqst['fromflag'] if 'fromflag' in rqst else 'C')
@@ -477,14 +449,14 @@ def build_request_message(rqst, logact):
 #
 def send_request_email(rqst, msg, logact):
 
-   ccemail = get_rqst_ccemail(rqst, logact)
-   if not ccemail or ccemail == 'N': return
+   pgctl = get_rqst_control(rqst['dsid'], rqst['gindex'], rqst['rqsttype'], logact)
+   if not pgctl or pgctl['ccemail'] == 'N': return
 
    ridx = rqst['rindex']
    dsid = rqst['dsid']
    rstr = PgOPT.request_type(rqst['rqsttype'])
    sender = "gdexdata@ucar.edu"
-   PgLOG.add_carbon_copy(ccemail, 1, "", rqst['specialist'])
+   PgLOG.add_carbon_copy(pgctl['ccemail'], 1, "", rqst['specialist'])
 
    if PgLOG.PGLOG['CCDADDR']:
       receiver = PgLOG.PGLOG['CCDADDR']
@@ -511,27 +483,43 @@ def send_request_email(rqst, msg, logact):
 
    PgLOG.send_email(subject, receiver, header + msg, sender, PgLOG.LOGWRN)
 
-def get_rqst_ccemail(rqst, logact):
+def get_rqst_control(dsid, gindex, rtype, logact):
    """ 
-   Get the carbon copy email address for a request control record
-   return None if no ccemail or ccemail is 'N'
+   Get the request control record for a request
+   return None if no control record found
    """
-   gcnd = f"dsid = '{rqst['dsid']}' AND gindex = {rqst['gindex']}"
-
-   if rqst['rqsttype'] == "T" or rqst['rqsttype'] == "S":
+   gcnd = f"dsid = '{dsid}' AND gindex = {gindex}"
+   if rtype == "T" or rtype == "S":
       tcnd = " AND (rqsttype = 'T' OR rqsttype = 'S')"
       ocnd = " ORDER BY rqsttype DESC"
    else:
-      tcnd = f" AND rqsttype = '{rqst['rqsttype']}'"
+      tcnd = f" AND rqsttype = '{rtype}'"
       ocnd = ""
-   cnd = gcnd + tcnd + ocnd
-   pgctl = PgDBI.pgget("rcrqst", "ccemail", cnd, logact)
 
-   if pgctl and pgctl['ccemail'] and pgctl['ccemail'] != 'N':
-      return pgctl['ccemail']
-   else:
-      return None
+   i = 0
+   while True:
+      cnd = gcnd + tcnd + ocnd
+      pgctl = PgDBI.pgget("rcrqst", "*", cnd, logact)
+      if not pgctl:
+         if gindex:
+            pgrec = PgDBI.pgget("dsgroup", "pindex", gcnd, logact)
+            if pgrec:
+               gindex = pgrec['pindex']
+               gcnd = "dsid = '{}' AND gindex = {}".format(dsid, gindex)
+               i += 1
+               continue
+         elif i == 0:
+            if ocnd:
+               ocnd += ", gindex"
+            else:
+               ocnd = " ORDER BY gindex"
+            gcnd = "dsid = '{}'".format(dsid)
+            i += 1
+            continue
+         return None
+      break
 
+   return pgctl
 #
 # create and return the request message back to caller
 #
