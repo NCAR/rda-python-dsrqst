@@ -23,7 +23,7 @@ from rda_python_common import PgDBI
 from rda_python_common import PgOPT
 from . import PgRqst
 
-UNAMES = VLDCMD = None
+VLDCMD = None
 PTLIMIT = PTSIZE = 0
 
 USG = (
@@ -129,7 +129,7 @@ def rda_request(rqst = None, logact = PgLOG.LOGWRN):
 #
 def common_request_info(pgrqst, rqst, logact):
 
-   global PTLIMIT, PTSIZE, UNAMES, VLDCMD
+   global PTLIMIT, PTSIZE, VLDCMD
    wdir = rtype = dsid = email = None
    PTLIMIT = PTSIZE = 0
    gindex = 0
@@ -150,8 +150,8 @@ def common_request_info(pgrqst, rqst, logact):
 
    if 'email' in rqst and rqst['email']: email = rqst['email']
    if not email: email = PgLOG.PGLOG['CURUID'] + "@ucar.edu"
-   UNAMES = PgDBI.get_ruser_names(email, 1)
-   if not UNAMES: return f"Please register your email {email} at https://gdex.ucar.edu/dashboard/ to submit a data request."
+   unames = PgDBI.get_ruser_names(email, 1)
+   if not unames: return f"Please register your email {email} at https://gdex.ucar.edu/dashboard/ to submit a data request."
 
    if 'location' in rqst and rqst['location']: wdir = rqst['location']
    if wdir:
@@ -170,11 +170,11 @@ def common_request_info(pgrqst, rqst, logact):
       return PgLOG.pglog(msg + ": NO Request Control record found", logact|PgLOG.RETMSG)
 
    if pgctl['maxrqst'] > 0:
-      msg = allow_request(rtype, UNAMES, pgctl, rqst['fromflag'] if 'fromflag' in rqst else 'C')
+      msg = allow_request(rtype, unames, pgctl, rqst['fromflag'] if 'fromflag' in rqst else 'C')
       if msg: return msg
 
    if pgctl['maxperiod'] and 'rinfo' in rqst and rqst['rinfo']:
-      msg = valid_request_period(rtype, UNAMES, pgctl, rqst['rinfo'], rqst['fromflag'] if 'fromflag' in rqst else 'C')
+      msg = valid_request_period(rtype, unames, pgctl, rqst['rinfo'], rqst['fromflag'] if 'fromflag' in rqst else 'C')
       if msg: return msg
 
    pgrqst['dsid'] = dsid
@@ -354,9 +354,11 @@ def valid_request_info(dsid, rinfo, logact):
 # add one request record
 #
 def add_request_record(pgrqst, logact):
+
+   unames = PgDBI.get_ruser_names(pgrqst['email'], 1)
    
    nidx = new_request_id(logact)
-   lname = PgLOG.convert_chars(UNAMES.get('lstname', None), 'RQST').upper()
+   lname = PgLOG.convert_chars(unames.get('lstname', None), 'RQST').upper()
    pgrqst['rqstid'] = "{}{}".format(lname, nidx)   # set request ID
    (pgrqst['date_rqst'], pgrqst['time_rqst']) = PgUtil.get_date_time()
    ridx = PgDBI.pgadd("dsrqst", pgrqst, logact|PgLOG.EXITLG|PgLOG.AUTOID|PgLOG.DODFLT)
@@ -365,7 +367,7 @@ def add_request_record(pgrqst, logact):
          record = {'rqstid' : "{}{}".format(lname, ridx)}
          PgDBI.pgupdt("dsrqst", record, "rindex = {}".format(ridx), logact|PgLOG.EXITLG)
 
-      PgLOG.pglog("{}: Request Index {} added for <{}> {}".format(pgrqst['dsid'], ridx, UNAMES['name'], pgrqst['email']), PgLOG.LOGWRN)
+      PgLOG.pglog("{}: Request Index {} added for <{}> {}".format(pgrqst['dsid'], ridx, unames['name'], pgrqst['email']), PgLOG.LOGWRN)
       pgrqst['rindex'] = ridx
       return None
    else:
@@ -422,7 +424,6 @@ def build_request_message(rqst, logact):
           "Status   : {}\n".format(PgRqst.request_status(rqst['status'])) +
           "Dataset  : {}\n".format(dsid) +
           "Title    : {}\n".format(drec['title']) +
-          "User     : {}\n".format(UNAMES['name']) +
           "Email    : {}\n".format(rqst['email']) +
           "Date     : {}\n".format(rqst['date_rqst']) +
           "Time     : {}\n".format(rqst['time_rqst']))
@@ -464,7 +465,7 @@ def send_request_email(rqst, msg, logact):
       receiver = rqst['specialist'] + "@ucar.edu"
 
    subject =  "{} Request '{}' from dataset {}".format(rstr, ridx, dsid)
-   uname = "{} ({})".format(UNAMES['name'], rqst['email'])
+   uname = f"{rqst['email']}"
 
    header = ("A {} Request '{}' is submmited for dataset '{}' ".format(rstr, ridx, dsid) +
              "from {} via command line. A summary of the request ".format(uname) +
