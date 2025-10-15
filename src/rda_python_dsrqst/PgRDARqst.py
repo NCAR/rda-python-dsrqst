@@ -23,7 +23,7 @@ from rda_python_common import PgDBI
 from rda_python_common import PgOPT
 from . import PgRqst
 
-UNAMES = CCEMAIL = VLDCMD = None
+UNAMES = VLDCMD = None
 PTLIMIT = PTSIZE = 0
 
 USG = (
@@ -129,19 +129,19 @@ def rda_request(rqst = None, logact = PgLOG.LOGWRN):
 #
 def common_request_info(pgrqst, rqst, logact):
 
-   global CCEMAIL, PTLIMIT, PTSIZE, UNAMES, VLDCMD
+   global PTLIMIT, PTSIZE, UNAMES, VLDCMD
    wdir = rtype = dsid = email = None
    PTLIMIT = PTSIZE = 0
    gindex = 0
    if 'rtype' in rqst and rqst['rtype']: rtype = rqst['rtype']
    if not rtype:
       PgLOG.pglog(USG, PgLOG.WARNLG)
-      return PgLOG.pglog("Miss request type to subset a request", logact|PgLOG.RETMSG)
+      return PgLOG.pglog("Request type is missing to subset a request", logact|PgLOG.RETMSG)
 
    if 'dsid' in rqst and rqst['dsid']: dsid = PgUtil.format_dataset_id(rqst['dsid'])
    if not dsid:
       PgLOG.pglog(USG, PgLOG.WARNLG)
-      return PgLOG.pglog("Miss dataset ID to submit a request", logact|PgLOG.RETMSG)
+      return PgLOG.pglog("Dataset ID is missing to submit a request", logact|PgLOG.RETMSG)
 
    if 'gindex' in rqst and rqst['gindex']: gindex = rqst['gindex']
    if not gindex and 'rinfo' in rqst and rqst['rinfo']:
@@ -162,40 +162,12 @@ def common_request_info(pgrqst, rqst, logact):
    else:
       wdir = os.getcwd()
 
-   gcnd = "dsid = '{}' AND gindex = {}".format(dsid, gindex)
-   if rtype == "T" or rtype == "S":
-      tcnd = " AND (rqsttype = 'T' OR rqsttype = 'S')"
-      ocnd = " ORDER BY rqsttype DESC"
-   else:
-      tcnd = " AND rqsttype = '{}'".format(rtype)
-      ocnd = ""
-
    msg = dsid
-   if gindex: msg += "_{}".format(gindex)
+   if gindex: msg += f"_{gindex}"
 
-   i = 0
-   while True:
-      cnd = gcnd + tcnd + ocnd
-      pgctl = PgDBI.pgget("rcrqst", "*", cnd, logact)
-      if not pgctl:
-         if gindex:
-            pgrec = PgDBI.pgget("dsgroup", "pindex", gcnd, logact)
-            if pgrec:
-               gindex = pgrec['pindex']
-               gcnd = "dsid = '{}' AND gindex = {}".format(dsid, gindex)
-               i += 1
-               continue
-         elif i == 0:
-            if ocnd:
-               ocnd += ", gindex"
-            else:
-               ocnd = " ORDER BY gindex"
-            gcnd = "dsid = '{}'".format(dsid)
-            i += 1
-            continue
-
-         return PgLOG.pglog(msg + ": NO Request Control record found", logact|PgLOG.RETMSG)
-      break
+   pgctl = get_rqst_control(dsid, gindex, rtype, logact)
+   if not pgctl:
+      return PgLOG.pglog(msg + ": NO Request Control record found", logact|PgLOG.RETMSG)
 
    if pgctl['maxrqst'] > 0:
       msg = allow_request(rtype, UNAMES, pgctl, rqst['fromflag'] if 'fromflag' in rqst else 'C')
@@ -216,7 +188,6 @@ def common_request_info(pgrqst, rqst, logact):
    pgrqst['specialist'] = pgctl['specialist']
    pgrqst['cindex'] = pgctl['cindex']
    pgrqst['gindex'] = pgctl['gindex']
-   CCEMAIL = pgctl['ccemail']
    VLDCMD = rqst['validsubset'] if 'validsubset' in rqst and rqst['validsubset'] else pgctl['validsubset']
    if 'command' in rqst and rqst['command']: pgrqst['command'] = rqst['command']
 
@@ -477,14 +448,15 @@ def build_request_message(rqst, logact):
 # email request info to specialist
 #
 def send_request_email(rqst, msg, logact):
-   
-   if not CCEMAIL or CCEMAIL == 'N': return
+
+   pgctl = get_rqst_control(rqst['dsid'], rqst['gindex'], rqst['rqsttype'], logact)
+   if not pgctl or pgctl['ccemail'] == 'N': return
 
    ridx = rqst['rindex']
    dsid = rqst['dsid']
    rstr = PgOPT.request_type(rqst['rqsttype'])
    sender = "gdexdata@ucar.edu"
-   PgLOG.add_carbon_copy(CCEMAIL, 1, "", rqst['specialist'])
+   PgLOG.add_carbon_copy(pgctl['ccemail'], 1, "", rqst['specialist'])
 
    if PgLOG.PGLOG['CCDADDR']:
       receiver = PgLOG.PGLOG['CCDADDR']
@@ -511,6 +483,43 @@ def send_request_email(rqst, msg, logact):
 
    PgLOG.send_email(subject, receiver, header + msg, sender, PgLOG.LOGWRN)
 
+def get_rqst_control(dsid, gindex, rtype, logact):
+   """ 
+   Get the request control record for a request
+   return None if no control record found
+   """
+   gcnd = f"dsid = '{dsid}' AND gindex = {gindex}"
+   if rtype == "T" or rtype == "S":
+      tcnd = " AND (rqsttype = 'T' OR rqsttype = 'S')"
+      ocnd = " ORDER BY rqsttype DESC"
+   else:
+      tcnd = f" AND rqsttype = '{rtype}'"
+      ocnd = ""
+
+   i = 0
+   while True:
+      cnd = gcnd + tcnd + ocnd
+      pgctl = PgDBI.pgget("rcrqst", "*", cnd, logact)
+      if not pgctl:
+         if gindex:
+            pgrec = PgDBI.pgget("dsgroup", "pindex", gcnd, logact)
+            if pgrec:
+               gindex = pgrec['pindex']
+               gcnd = "dsid = '{}' AND gindex = {}".format(dsid, gindex)
+               i += 1
+               continue
+         elif i == 0:
+            if ocnd:
+               ocnd += ", gindex"
+            else:
+               ocnd = " ORDER BY gindex"
+            gcnd = "dsid = '{}'".format(dsid)
+            i += 1
+            continue
+         return None
+      break
+
+   return pgctl
 #
 # create and return the request message back to caller
 #
