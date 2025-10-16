@@ -474,7 +474,10 @@ def send_request_email(rqst, msg, logact):
             ccemails.append(email)
          else:
             PgLOG.pglog(f"{email}: invalid email address in request control record", logact|PgLOG.WARNLG)
-      if ccemails: ccemail = ', '.join(ccemails)
+      if ccemails:
+         ccemail = ', '.join(ccemails)
+      else:
+         ccemail = None
 
    subject = f"{rstr} Request '{ridx}' from dataset {dsid}"
    uname = f"{rqst['email']}"
