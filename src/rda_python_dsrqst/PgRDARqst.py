@@ -462,8 +462,8 @@ def send_request_email(rqst, msg, logact):
    receiver = rqst['specialist'] + "@ucar.edu"
    ccemail = pgctl.get('ccemail', None)
 
-   ccemails = []
    if ccemail:
+      ccemails = []
       emails = re.split(r'[,\s]+', ccemail)
       for email in emails:
          if email == 'S':
@@ -478,12 +478,11 @@ def send_request_email(rqst, msg, logact):
 
    subject = f"{rstr} Request '{ridx}' from dataset {dsid}"
    uname = f"{rqst['email']}"
-
    if 'fromflag' in rqst and rqst['fromflag'] == "W":
       method = "GDEX web interface"
    else:
       method = "command line"
-
+   
    header = (f"A {rstr} request (request index {ridx}) has been submitted for dataset {dsid} " +
              f"by {uname} from the {method}. A summary of the request information is given below.\n\n The request is currently ")
    if rqst['status'] == "Q":
