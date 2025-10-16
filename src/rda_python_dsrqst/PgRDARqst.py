@@ -480,6 +480,8 @@ def send_request_email(rqst, msg, logact):
    uname = f"{rqst['email']}"
    if 'fromflag' in rqst and rqst['fromflag'] == "W":
       method = "GDEX web interface"
+   elif 'fromflag' in rqst and rqst['fromflag'] == "A":
+      method = "gdex_client API"
    else:
       method = "command line"
    
