@@ -22,6 +22,8 @@ from rda_python_common import PgFile
 from rda_python_common import PgDBI
 from rda_python_common import PgOPT
 from . import PgRqst
+import smtplib
+from email.message import EmailMessage
 
 VLDCMD = None
 PTLIMIT = PTSIZE = 0
@@ -451,38 +453,72 @@ def build_request_message(rqst, logact):
 def send_request_email(rqst, msg, logact):
 
    pgctl = get_rqst_control(rqst['dsid'], rqst['gindex'], rqst['rqsttype'], logact)
-   if not pgctl or pgctl['ccemail'] == 'N': return
+   if not pgctl or pgctl.get('ccemail', None) == 'N': return
 
    ridx = rqst['rindex']
    dsid = rqst['dsid']
    rstr = PgOPT.request_type(rqst['rqsttype'])
    sender = "gdexdata@ucar.edu"
-   PgLOG.add_carbon_copy(pgctl['ccemail'], 1, "", rqst['specialist'])
+   receiver = rqst['specialist'] + "@ucar.edu"
+   ccemail = pgctl.get('ccemail', None)
 
-   if PgLOG.PGLOG['CCDADDR']:
-      receiver = PgLOG.PGLOG['CCDADDR']
-   else:
-      receiver = rqst['specialist'] + "@ucar.edu"
+   ccemails = []
+   if ccemail:
+      emails = re.split(r'[,\s]+', ccemail)
+      for email in emails:
+         if email == 'S':
+            continue # specialist already in 'To' field
+         elif not re.search(r'@', email):
+            ccemails.append(email + "@ucar.edu")
+         elif re.match(r'^.+@.+\.\w+$', email):
+            ccemails.append(email)
+         else:
+            PgLOG.pglog(f"{email}: invalid email address in request control record", logact|PgLOG.WARNLG)
+      if ccemails: ccemail = ', '.join(ccemails)
 
-   subject =  "{} Request '{}' from dataset {}".format(rstr, ridx, dsid)
+   subject = f"{rstr} Request '{ridx}' from dataset {dsid}"
    uname = f"{rqst['email']}"
 
-   header = ("A {} Request '{}' is submmited for dataset '{}' ".format(rstr, ridx, dsid) +
-             "from {} via command line. A summary of the request ".format(uname) +
-             "information is given below.\n\n The Request is currently ")
+   if 'fromflag' in rqst and rqst['fromflag'] == "W":
+      method = "GDEX web interface"
+   else:
+      method = "command line"
+
+   header = (f"A {rstr} request (request index {ridx}) has been submitted for dataset {dsid} " +
+             f"by {uname} from the {method}. A summary of the request information is given below.\n\n The request is currently ")
    if rqst['status'] == "Q":
       header += ("granted and queued for processing. An email notice will be sent " +
-                 "to you and {} when the requested data are ready.\n\n".format(uname))
+                 f"to you and {uname} when the requested data are ready.\n\n")
    else:
       header += ("waiting your approval:\n\n" +
-                 "  * To grant this Request you may click this link " +
-                 "{}/#wqrqst?ridx={} or issue ".format(PgLOG.PGLOG['DSSURL'], ridx) +
-                 "command 'dsrqst sr -ri {} -rs Q' to put this request in queue.\n\n".format(ridx) +
-                 "  * To decline this request you execute 'dsrqst dl -ri {}' to ".format(ridx) +
-                 "remove the request from RDADB and please, for courtsey, reply " +
-                 "this email to explain why this Request is refused.\n\n")
+                 "  * To grant this Request, you may issue the " +
+                 f"command 'dsrqst sr -ri {ridx} -rs Q' to put this request in queue.\n\n" +
+                 f"  * To decline this request, run the command 'dsrqst dl -ri {ridx}' to " +
+                 "remove the request from RDADB and please, for courtsey, reply to " +
+                 f"the user at {uname} to explain why this request is refused.\n\n")
 
-   PgLOG.send_email(subject, receiver, header + msg, sender, PgLOG.LOGWRN)
+   logmsg = f"Email {receiver}"
+
+   email_msg = EmailMessage()
+   email_msg['Subject'] = subject
+   email_msg['From'] = sender
+   email_msg['To'] = receiver
+   if ccemail:
+      email_msg['Cc'] = ccemail
+      logmsg += f", CC: {ccemail}"
+   email_msg.set_content(header + msg)
+
+   logmsg += f", Subject: {subject}\n"
+
+   with smtplib.SMTP(PgLOG.PGLOG['EMLSRVR'], PgLOG.PGLOG['EMLPORT']) as smtp:
+      try:
+         smtp.send_message(email_msg)
+      except Exception as e:
+         return PgLOG.pglog(f"Failed to send email to {receiver} for request {ridx}:\n{e}\n{logmsg}", (logact|PgLOG.ERRLOG)&~PgLOG.EXITLG)
+      finally:
+         smtp.quit()
+
+   return
 
 def get_rqst_control(dsid, gindex, rtype, logact):
    """ 
