@@ -1412,12 +1412,12 @@ def cache_request_control(ridx, pgrqst, action, pidx = 0):
    if 'EO' in PgOPT.params: pgrec['empty_out'] = PgOPT.params['EO'][0]
    if 'PC' in PgOPT.params and PgOPT.params['PC'][0]:
       pgrec['command'] = PgOPT.params['PC'][0]
-   elif pgrqst['command'] and pgrqst['command'] != pgrec['command']:
+   elif 'command' in pgrqst and pgrqst['command'] and pgrqst['command'] != pgrec['command']:
       pgrec['command'] = pgrqst['command']
 
-   if pgrqst['ptlimit'] and pgrqst['ptlimit'] != pgrec['ptlimit']:
+   if 'ptlimit' in pgrqst and pgrqst['ptlimit'] and pgrqst['ptlimit'] != pgrec['ptlimit']:
       pgrec['ptlimit'] = pgrqst['ptlimit']
-   elif pgrqst['ptsize'] and pgrqst['ptsize'] != pgrec['ptsize']:
+   elif 'ptsize' in pgrqst and pgrqst['ptsize'] and pgrqst['ptsize'] != pgrec['ptsize']:
       pgrec['ptsize'] = pgrqst['ptsize']
 
    PgOPT.PGOPT['VP'] = PgOPT.params['VP'][0] if 'VP' in PgOPT.params else (pgrec['validperiod'] if pgrec['validperiod'] else PgOPT.PGOPT['DVP'])
