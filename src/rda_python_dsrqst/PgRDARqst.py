@@ -22,8 +22,10 @@ from rda_python_common import PgFile
 from rda_python_common import PgDBI
 from rda_python_common import PgOPT
 from . import PgRqst
+import smtplib
+from email.message import EmailMessage
 
-UNAMES = CCEMAIL = VLDCMD = None
+VLDCMD = None
 PTLIMIT = PTSIZE = 0
 
 USG = (
@@ -46,6 +48,7 @@ USG = (
 "   'command' : RequestCommand (optional, command different from the one in request control)\n" +
 " 'validsubset' : ValidationCommand (optional, command to validate rinfo at subset submission time)\n" +
 "  'location' : RequestLocation (optional, default to current working directory)\n" +
+"  'fromflag' : RequestFromFlag (optional, default to 'C' - command line; 'W' - web request)\n" +
 "   'rinfo'   : RequesInfo (detail request information, mandatory for subset request)\n" +
 "   'rnote'   : RequestNote (optional, readable version of 'rinfo')\n\n" +
 "     logact - optional logging action flag, PgLOG.LOGWRN as default.\n\n" +
@@ -114,26 +117,33 @@ def rda_request(rqst = None, logact = PgLOG.LOGWRN):
    msg = build_request_message(pgrqst, logact)
    send_request_email(pgrqst, msg, logact)
 
-   return return_request_message(pgrqst, 1, logact) + msg
+   response_msg = return_request_message(pgrqst, 1, logact)
+
+   # request submitted, return success message
+   if type(response_msg) == str:
+      return response_msg + msg
+   else:
+      response_msg['summary'] = msg
+      return response_msg
 
 #
 # fill up the common request info
 #
 def common_request_info(pgrqst, rqst, logact):
 
-   global CCEMAIL, PTLIMIT, PTSIZE, UNAMES, VLDCMD
+   global PTLIMIT, PTSIZE, VLDCMD
    wdir = rtype = dsid = email = None
    PTLIMIT = PTSIZE = 0
    gindex = 0
    if 'rtype' in rqst and rqst['rtype']: rtype = rqst['rtype']
    if not rtype:
       PgLOG.pglog(USG, PgLOG.WARNLG)
-      return PgLOG.pglog("Miss request type to subset a request", logact|PgLOG.RETMSG)
+      return PgLOG.pglog("Request type is missing to subset a request", logact|PgLOG.RETMSG)
 
    if 'dsid' in rqst and rqst['dsid']: dsid = PgUtil.format_dataset_id(rqst['dsid'])
    if not dsid:
       PgLOG.pglog(USG, PgLOG.WARNLG)
-      return PgLOG.pglog("Miss dataset ID to submit a request", logact|PgLOG.RETMSG)
+      return PgLOG.pglog("Dataset ID is missing to submit a request", logact|PgLOG.RETMSG)
 
    if 'gindex' in rqst and rqst['gindex']: gindex = rqst['gindex']
    if not gindex and 'rinfo' in rqst and rqst['rinfo']:
@@ -142,8 +152,8 @@ def common_request_info(pgrqst, rqst, logact):
 
    if 'email' in rqst and rqst['email']: email = rqst['email']
    if not email: email = PgLOG.PGLOG['CURUID'] + "@ucar.edu"
-   UNAMES = PgDBI.get_ruser_names(email, 1)
-   if not UNAMES: return "Register {} on https://rda.ucar.edu to subset data request".format(email)
+   unames = PgDBI.get_ruser_names(email, 1)
+   if not unames: return f"Please register your email {email} at https://gdex.ucar.edu/dashboard/ to submit a data request."
 
    if 'location' in rqst and rqst['location']: wdir = rqst['location']
    if wdir:
@@ -154,47 +164,19 @@ def common_request_info(pgrqst, rqst, logact):
    else:
       wdir = os.getcwd()
 
-   gcnd = "dsid = '{}' AND gindex = {}".format(dsid, gindex)
-   if rtype == "T" or rtype == "S":
-      tcnd = " AND (rqsttype = 'T' OR rqsttype = 'S')"
-      ocnd = " ORDER BY rqsttype DESC"
-   else:
-      tcnd = " AND rqsttype = '{}'".format(rtype)
-      ocnd = ""
-
    msg = dsid
-   if gindex: msg += "_{}".format(gindex)
+   if gindex: msg += f"_{gindex}"
 
-   i = 0
-   while True:
-      cnd = gcnd + tcnd + ocnd
-      pgctl = PgDBI.pgget("rcrqst", "*", cnd, logact)
-      if not pgctl:
-         if gindex:
-            pgrec = PgDBI.pgget("dsgroup", "pindex", gcnd, logact)
-            if pgrec:
-               gindex = pgrec['pindex']
-               gcnd = "dsid = '{}' AND gindex = {}".format(dsid, gindex)
-               i += 1
-               continue
-         elif i == 0:
-            if ocnd:
-               ocnd += ", gindex"
-            else:
-               ocnd = " ORDER BY gindex"
-            gcnd = "dsid = '{}'".format(dsid)
-            i += 1
-            continue
-
-         return PgLOG.pglog(msg + ": NO Request Control record found", logact|PgLOG.RETMSG)
-      break
+   pgctl = get_rqst_control(dsid, gindex, rtype, logact)
+   if not pgctl:
+      return PgLOG.pglog(msg + ": NO Request Control record found", logact|PgLOG.RETMSG)
 
    if pgctl['maxrqst'] > 0:
-      msg = allow_request(rtype, UNAMES, pgctl)
+      msg = allow_request(rtype, unames, pgctl, rqst['fromflag'] if 'fromflag' in rqst else 'C')
       if msg: return msg
 
    if pgctl['maxperiod'] and 'rinfo' in rqst and rqst['rinfo']:
-      msg = valid_request_period(rtype, UNAMES, pgctl, rqst['rinfo'])
+      msg = valid_request_period(rtype, unames, pgctl, rqst['rinfo'], rqst['fromflag'] if 'fromflag' in rqst else 'C')
       if msg: return msg
 
    pgrqst['dsid'] = dsid
@@ -208,7 +190,6 @@ def common_request_info(pgrqst, rqst, logact):
    pgrqst['specialist'] = pgctl['specialist']
    pgrqst['cindex'] = pgctl['cindex']
    pgrqst['gindex'] = pgctl['gindex']
-   CCEMAIL = pgctl['ccemail']
    VLDCMD = rqst['validsubset'] if 'validsubset' in rqst and rqst['validsubset'] else pgctl['validsubset']
    if 'command' in rqst and rqst['command']: pgrqst['command'] = rqst['command']
 
@@ -231,9 +212,8 @@ def common_request_info(pgrqst, rqst, logact):
 
    # set other request info
    hash = {'sflag' : "subflag", 'tflag' : "tarflag", 'dfmt' : "data_format", 'afmt' : "file_format", 'enote' : "enotice"}
-   for key in hash:
-      fld = hash[key]
-      if key in rqst and rqst[fld]:
+   for key, fld in hash.items():
+      if key in rqst and rqst[key]:
          pgrqst[fld] = rqst[key]
       elif fld in pgctl and pgctl[fld]:
          pgrqst[fld] = pgctl[fld]
@@ -246,7 +226,7 @@ def common_request_info(pgrqst, rqst, logact):
 #
 # check if allow request for the user
 #
-def allow_request(rtype, unames, pgctl):
+def allow_request(rtype, unames, pgctl, fromflag = None):
 
    cnt = PgDBI.pgget("dsrqst", "", "cindex = {} AND email = '{}' AND status <> 'P'".format(pgctl['cindex'], unames['email']))
 
@@ -255,13 +235,26 @@ def allow_request(rtype, unames, pgctl):
    else:
       rstr = PgOPT.request_type(rtype)
       gstr = (" Product" if pgctl['gindex'] else '')
-      return ("{}: Your {} request is denied since you have {} outstanding ".format(unames['name'], rstr, cnt) +
-              "requests already for this Dataset{}. Try later.".format(gstr))
+      if fromflag and fromflag == "W":
+         return {
+            'error': {
+               'code': 'too_many_requests',
+               'message': f'Too many outstanding requests'
+            },
+            'message': f'Your {rstr} request is denied since you have {cnt} outstanding requests already for this Dataset{gstr} (a maximum of {pgctl["maxrqst"]} is allowed). Please try again later after your other requests have completed processing.',
+            'data': {
+               'max_requests': pgctl['maxrqst'],
+               'current_requests': cnt
+            }
+         }
+      else:
+         return ("{}: Your {} request is denied since you have {} outstanding ".format(unames['name'], rstr, cnt) +
+              "requests already for this Dataset{}. Please try again later after your other requests have completed processing.".format(gstr))
 
 #
 # check if a request temporal period is not exceeding the limit
 #
-def valid_request_period(rtype, unames, pgctl, rinfo):
+def valid_request_period(rtype, unames, pgctl, rinfo, fromflag = None):
 
    dates = None
    ms = re.search(r'dates=(\d+-\d+-\d+)( | \d+:\d+ )(\d+-\d+-\d+)', rinfo)
@@ -298,9 +291,23 @@ def valid_request_period(rtype, unames, pgctl, rinfo):
    pstr = "{} {}{}".format(val, unit, ('s' if val > 1 else ''))
    rstr = PgOPT.request_type(rtype)
    gstr = (" Product" if pgctl['gindex'] else '')
-   return ("{}: Your {} request period, ".format(unames['name'], rstr) +
+   if fromflag and fromflag == "W":
+      return {
+         'error': {
+            'code': 'request_period_exceeded',
+            'message': 'Request Period Exceeded'
+         },
+         'message': f'Your {rstr} request period, {dates[0]} - {dates[1]}, is longer than {pstr} for this Dataset{gstr}. Please choose a shorter data period.',
+         'data': {
+            'request_start_date': dates[0],
+            'request_end_date': dates[1],
+            'maximum_period': pstr
+         }
+      }
+   else:
+      return ("{}: Your {} request period, ".format(unames['name'], rstr) +
            "{} - {}, is longer than {} for ".format(dates[0], dates[1], pstr) +
-           "this Dataset{}. Try a shorter data period.".format(gstr))
+           "this Dataset{}. Please choose a shorter data period.".format(gstr))
 
 #
 # process and fill up the detail request info based on the request type
@@ -349,9 +356,11 @@ def valid_request_info(dsid, rinfo, logact):
 # add one request record
 #
 def add_request_record(pgrqst, logact):
+
+   unames = PgDBI.get_ruser_names(pgrqst['email'], 1)
    
    nidx = new_request_id(logact)
-   lname = PgLOG.convert_chars(UNAMES['lstname'], 'RQST').upper()
+   lname = PgLOG.convert_chars(unames.get('lstname', None), 'RQST').upper()
    pgrqst['rqstid'] = "{}{}".format(lname, nidx)   # set request ID
    (pgrqst['date_rqst'], pgrqst['time_rqst']) = PgUtil.get_date_time()
    ridx = PgDBI.pgadd("dsrqst", pgrqst, logact|PgLOG.EXITLG|PgLOG.AUTOID|PgLOG.DODFLT)
@@ -360,7 +369,7 @@ def add_request_record(pgrqst, logact):
          record = {'rqstid' : "{}{}".format(lname, ridx)}
          PgDBI.pgupdt("dsrqst", record, "rindex = {}".format(ridx), logact|PgLOG.EXITLG)
 
-      PgLOG.pglog("{}: Request Index {} added for <{}> {}".format(pgrqst['dsid'], ridx, UNAMES['name'], pgrqst['email']), PgLOG.LOGWRN)
+      PgLOG.pglog("{}: Request Index {} added for <{}> {}".format(pgrqst['dsid'], ridx, unames['name'], pgrqst['email']), PgLOG.LOGWRN)
       pgrqst['rindex'] = ridx
       return None
    else:
@@ -389,7 +398,16 @@ def subset_request_submitted(rqst, logact):
    if not pgrqst: return None
 
    msg = build_request_message(pgrqst, logact)
-   return return_request_message(pgrqst, 0, logact) + msg
+   response_msg = return_request_message(pgrqst, 0, logact)
+
+   if type(response_msg) == dict:
+      response_msg['summary'] = msg
+      response_msg['data'].update({
+         'date_purge': pgrqst['date_purge']
+      })
+      return response_msg
+   else:
+      return response_msg + msg
 
 #
 # build a string message for a submitted request
@@ -408,7 +426,6 @@ def build_request_message(rqst, logact):
           "Status   : {}\n".format(PgRqst.request_status(rqst['status'])) +
           "Dataset  : {}\n".format(dsid) +
           "Title    : {}\n".format(drec['title']) +
-          "User     : {}\n".format(UNAMES['name']) +
           "Email    : {}\n".format(rqst['email']) +
           "Date     : {}\n".format(rqst['date_rqst']) +
           "Time     : {}\n".format(rqst['time_rqst']))
@@ -422,7 +439,7 @@ def build_request_message(rqst, logact):
    else:
       desc = None
 
-   if desc: buf += "Request Detail:\n{}\n".format(PgLOG.break_long_string(desc))
+   if desc: buf += "\nRequest Detail:\n{}\n".format(PgLOG.break_long_string(desc))
 
    if 'fcount' in rqst and rqst['fcount'] and 'size_input' in rqst and rqst['size_input']:
       s = 's' if rqst['fcount'] > 1 else ''
@@ -434,39 +451,116 @@ def build_request_message(rqst, logact):
 # email request info to specialist
 #
 def send_request_email(rqst, msg, logact):
-   
-   if not CCEMAIL or CCEMAIL == 'N': return
+
+   pgctl = get_rqst_control(rqst['dsid'], rqst['gindex'], rqst['rqsttype'], logact)
+   if not pgctl or pgctl.get('ccemail', None) == 'N': return
 
    ridx = rqst['rindex']
    dsid = rqst['dsid']
    rstr = PgOPT.request_type(rqst['rqsttype'])
-   PgLOG.add_carbon_copy(CCEMAIL, 1, "", rqst['specialist'])
-   if PgLOG.PGLOG['CCDADDR']:
-      receiver = PgLOG.PGLOG['CCDADDR']
-      PgLOG.PGLOG['CCDADDR'] = ''
+   sender = "gdexdata@ucar.edu"
+   receiver = rqst['specialist'] + "@ucar.edu"
+   ccemail = pgctl.get('ccemail', None)
+
+   if ccemail:
+      ccemails = []
+      emails = re.split(r'[,\s]+', ccemail)
+      for email in emails:
+         if email == 'S':
+            continue # specialist already in 'To' field
+         elif not re.search(r'@', email):
+            ccemails.append(email + "@ucar.edu")
+         elif re.match(r'^.+@.+\.\w+$', email):
+            ccemails.append(email)
+         else:
+            PgLOG.pglog(f"{email}: invalid email address in request control record", logact|PgLOG.WARNLG)
+      if ccemails:
+         ccemail = ', '.join(ccemails)
+      else:
+         ccemail = None
+
+   subject = f"{rstr} Request '{ridx}' from dataset {dsid}"
+   uname = f"{rqst['email']}"
+   if 'fromflag' in rqst and rqst['fromflag'] == "W":
+      method = "GDEX web interface"
+   elif 'fromflag' in rqst and rqst['fromflag'] == "A":
+      method = "gdex_client API"
    else:
-      receiver = rqst['specialist'] + "@ucar.edu"
-
-   subject =  "{} Request '{}' of {}!".format(rstr, ridx, dsid)
-   uname = "{} ({})".format(UNAMES['name'], rqst['email'])
-
-   header = ("A {} Request '{}' is submmited for dataset '{}' ".format(rstr, ridx, dsid) +
-             "from {} via command line. A summary of the request ".format(uname) +
-             "information is given below.\n\n The Request is currently ")
+      method = "command line"
+   
+   header = (f"A {rstr} request (request index {ridx}) has been submitted for dataset {dsid} " +
+             f"by {uname} from the {method}. A summary of the request information is given below.\n\n The request is currently ")
    if rqst['status'] == "Q":
       header += ("granted and queued for processing. An email notice will be sent " +
-                 "to you and {} when the requested data are ready.\n\n".format(uname))
+                 f"to you and {uname} when the requested data are ready.\n\n")
    else:
       header += ("waiting your approval:\n\n" +
-                 "  * To grant this Request you may click this link " +
-                 "{}/#wqrqst?ridx={} or issue ".format(PgLOG.PGLOG['DSSURL'], ridx) +
-                 "command 'dsrqst sr -ri {} -rs Q' to put this request in queue.\n\n".format(ridx) +
-                 "  * To decline this request you execute 'dsrqst dl -ri {}' to ".format(ridx) +
-                 "remove the request from RDADB and please, for courtsey, reply " +
-                 "this email to explain why this Request is refused.\n\n")
+                 "  * To grant this Request, you may issue the " +
+                 f"command 'dsrqst sr -ri {ridx} -rs Q' to put this request in queue.\n\n" +
+                 f"  * To decline this request, run the command 'dsrqst dl -ri {ridx}' to " +
+                 "remove the request from RDADB and please, for courtsey, reply to " +
+                 f"the user at {uname} to explain why this request is refused.\n\n")
 
-   PgLOG.send_email(subject, receiver, header + msg, rqst['email'], PgLOG.LOGWRN)
+   logmsg = f"Email {receiver}"
 
+   email_msg = EmailMessage()
+   email_msg['Subject'] = subject
+   email_msg['From'] = sender
+   email_msg['To'] = receiver
+   if ccemail:
+      email_msg['Cc'] = ccemail
+      logmsg += f", CC: {ccemail}"
+   email_msg.set_content(header + msg)
+
+   logmsg += f", Subject: {subject}\n"
+
+   with smtplib.SMTP(PgLOG.PGLOG['EMLSRVR'], PgLOG.PGLOG['EMLPORT']) as smtp:
+      try:
+         smtp.send_message(email_msg)
+      except Exception as e:
+         return PgLOG.pglog(f"Failed to send email to {receiver} for request {ridx}:\n{e}\n{logmsg}", (logact|PgLOG.ERRLOG)&~PgLOG.EXITLG)
+      finally:
+         smtp.quit()
+
+   return
+
+def get_rqst_control(dsid, gindex, rtype, logact):
+   """ 
+   Get the request control record for a request
+   return None if no control record found
+   """
+   gcnd = f"dsid = '{dsid}' AND gindex = {gindex}"
+   if rtype == "T" or rtype == "S":
+      tcnd = " AND (rqsttype = 'T' OR rqsttype = 'S')"
+      ocnd = " ORDER BY rqsttype DESC"
+   else:
+      tcnd = f" AND rqsttype = '{rtype}'"
+      ocnd = ""
+
+   i = 0
+   while True:
+      cnd = gcnd + tcnd + ocnd
+      pgctl = PgDBI.pgget("rcrqst", "*", cnd, logact)
+      if not pgctl:
+         if gindex:
+            pgrec = PgDBI.pgget("dsgroup", "pindex", gcnd, logact)
+            if pgrec:
+               gindex = pgrec['pindex']
+               gcnd = "dsid = '{}' AND gindex = {}".format(dsid, gindex)
+               i += 1
+               continue
+         elif i == 0:
+            if ocnd:
+               ocnd += ", gindex"
+            else:
+               ocnd = " ORDER BY gindex"
+            gcnd = "dsid = '{}'".format(dsid)
+            i += 1
+            continue
+         return None
+      break
+
+   return pgctl
 #
 # create and return the request message back to caller
 #
@@ -480,26 +574,46 @@ def return_request_message(rqst, success, logact):
    email = name + "@ucar.edu"
    rec = PgDBI.pgget("dssgrp", "lstname, fstname", "logname = '{}'".format(name), logact)
    if rec: name = "{} {}".format(rec['fstname'], rec['lstname'])
+   error = None
 
    msg = "{}:\n\nYour {} request has been ".format(title, rstr)
    if success:
       msg += ("submitted successfully.\nA summary of your request is given below.\n\n" +
               "Your request will be processed soon. You will be informed via email\n" +
-              "when the data is ready to be picked up.\n" +
-              "\nYou may check request status of data requests you have submitted via " +
-              "the web link\n{}/#ckrqst\n".format(PgLOG.PGLOG['DSSURL']))
+              "when the data are ready to be downloaded.\n" +
+              "\nYou may check the progress of your request in your User Dashboard " +
+              "online at\n{}/dashboard/\n".format(PgLOG.PGLOG['DSSURL']) +
+              "under the 'Customized Data Requests' section.")
    else:
-      msg += ("DECLINED since you have summitted\na same request already as " +
+      msg += ("DECLINED since you have summitted\na duplicate request as " +
               "in the summary shown below.\n")
       if rqst['status'] == "O":
-         msg += ("\nYour previous Request ridx is available under\n" +
-                 "{} until {}.\n".format(rqst['location'], rqst['date_purge']))
+         msg += ("\nYour previous Request {} is available under\n" +
+                 "{} until {}.\n".format(rqst['rindex'], rqst['location'], rqst['date_purge']))
+      error = "Duplicate Request"
 
-   msg += ("\nIf the information is CORRECT no further action is need.\n" +
+   msg += ("\nIf the information is CORRECT no further action is needed.\n" +
            "If the information is NOT CORRECT, or if you have additional comments\n" +
-           "you may email to {} ({}) with corrections or comments.\n\n".format(email, name))
+           "you may send an email to {} ({}) with questions or comments.\n\n".format(email, name))
 
-   return msg
+   if 'fromflag' in rqst and rqst['fromflag'] == "W":
+      # return a dictionary array if from web request
+      response_msg = {
+         'message': msg,
+         'data': {
+            'rindex': ridx,
+            'rstr': rstr,
+            'title': title,
+         }
+      }
+      if error: response_msg['error'] = {
+         'code': 'duplicate_request',
+         'message': error
+         }
+      return response_msg
+   else:
+      # return a string message if from command line or other
+      return msg
 
 #
 # Function rda_request_status(ridx  - Request Index)

@@ -1,1 +1,3 @@
-RDA python package to add and process user requests for RDA data.
+# dsrqst
+
+Python project to add and process user requests from the [NSF NCAR Geoscience Data Exchange (GDEX)](https://gdex.ucar.edu).
