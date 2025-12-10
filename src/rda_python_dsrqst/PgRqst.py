@@ -1428,7 +1428,8 @@ def cache_request_control(ridx, pgrqst, action, pidx = 0):
          if PgOPT.request_type(rtype, 1):
             pgrec['command'] += PgLOG.join_paths(PgOPT.params['WH'], "data/" + pgrqst['dsid'])
          else:
-            pgrec['command'] += get_file_path(None, pgrqst['rqstid'], pgrqst['location'], 1)
+            location = pgrqst['location'] if 'location' in pgrqst else ''
+            pgrec['command'] += get_file_path(None, pgrqst['rqstid'], location, 1)
          if pidx and action == 'PP':
             pgrec['command'] += " {}".format(pidx)
 
