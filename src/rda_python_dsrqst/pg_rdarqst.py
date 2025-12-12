@@ -22,7 +22,7 @@ class PgRDARqst(PgRqst):
       "   'rtype'   : RequestType (mandatory)\n" +
       "   'dsid'    : DatasetId (mandatory)\n" +
       "   'gindex'  : GroupIndex (optional, default to 0)\n" +
-      "   'email'   : UserEmail (optional, default to UserLoginID\@ucar.edu)\n" +
+      "   'email'   : UserEmail (optional, default to UserLoginID@ucar.edu)\n" +
       "   'rstat'   : RequestStatus (optional, default to value in request control record)\n" +
       "   'sflag'   : SubsetFlags (optional, 1 Variable, 2 - Temporal, 3 Spatial)\n" +
       "   'tflag'   : TarFlag (Optional, default to N - No tar, Y-tar small files)\n" +
@@ -79,7 +79,7 @@ class PgRDARqst(PgRqst):
       "   status1 = pgrecs['status'][1]\n" +
       "\n")
 
-   def __init__(self, self):
+   def __init__(self):
       super().__init__()  # initialize parent class
       self.VLDCMD = None
       self.PTLIMIT = self.PTSIZE = 0

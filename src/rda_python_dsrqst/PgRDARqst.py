@@ -34,7 +34,7 @@ USG = (
 "   'rtype'   : RequestType (mandatory)\n" +
 "   'dsid'    : DatasetId (mandatory)\n" +
 "   'gindex'  : GroupIndex (optional, default to 0)\n" +
-"   'email'   : UserEmail (optional, default to UserLoginID\@ucar.edu)\n" +
+"   'email'   : UserEmail (optional, default to UserLoginID@ucar.edu)\n" +
 "   'rstat'   : RequestStatus (optional, default to value in request control record)\n" +
 "   'sflag'   : SubsetFlags (optional, 1 Variable, 2 - Temporal, 3 Spatial)\n" +
 "   'tflag'   : TarFlag (Optional, default to N - No tar, Y-tar small files)\n" +
