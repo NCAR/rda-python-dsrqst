@@ -4,7 +4,8 @@
 #      Date : 09/19/2020
 #             2025-02-10 transferred to package rda_python_dsrqst from
 #             https://github.com/NCAR/rda-shared-libraries.git
-#   Purpose : python library module for holding some global variables and
+#             2025-12-12 convert to class PgRqst
+#   Purpose : python library module for holding some common variables and
 #             functions for dsrqst utility
 #    Github : https://github.com/NCAR/rda-python-dsrqst.git
 # 

@@ -17,7 +17,7 @@ import time
 from os import path as op
 from .pg_rqst import PgRqst
 
-class PgRqst(PgRqst):
+class DsRqst(PgRqst):
 
    def __init__(self):
       super().__init__()  # initialize parent class
