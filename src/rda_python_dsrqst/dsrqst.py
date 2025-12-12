@@ -1205,7 +1205,7 @@ class DsRqst(PgRqst):
          if not pgrqst: return self.pglog("RQST{}: can not get Request info".format(ridx), self.PGOPT['errlog'])
          if not self.cache_request_control(ridx, pgrqst, 'PP', pidx): continue
          if self.lock_partition(pidx, 1, self.PGOPT['errlog']) <= 0: continue
-         mcnt += process_one_partition(pidx, cnd, pgpart, ridx, pgrqst)
+         mcnt += self.process_one_partition(pidx, cnd, pgpart, ridx, pgrqst)
          if self.ALLCNT == 1 and mcnt > 0 and self.finish_one_request(ridx, pidx):
             self.pglog("RQST{}: built after RPT{} is processed".format(ridx, pidx), self.PGOPT['wrnlog'])
       if mcnt > 1:

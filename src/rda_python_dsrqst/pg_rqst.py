@@ -1281,7 +1281,7 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
          cnt = rqst['pcount'] if rqst['pcount'] else self.pgget("wfrqst", "", cnd)
          if(cnt == 0 and rqst['rqstid'] and 
             (rqst['location'] or self.request_type(rqst['rqsttype'], 1) == 0)):
-            files = glob.glob(get_file_path("*", rqst['rqstid'], rqst['location'], 1))
+            files = glob.glob(self.get_file_path("*", rqst['rqstid'], rqst['location'], 1))
             cnt = len(files)
          if cnt > 0:
             if cnt < rqst['fcount']:
