@@ -3,10 +3,10 @@
 
 Program 'dsrqst' is a utility for controlling and processing special data requests.
 The current implementation supports online download requests of HPSS data for
-users who want to access the data via RDA Web Server, and services of data subsets
+users who want to access the data via GDEX Web Server, and services of data subsets
 and data format conversions. The queued requests are normally controlled by the
 centralized daemon 'dscheck' to be processed on specified machines. The end
-products are staged on RDA Server for users to access online or via NCAR internal
+products are staged on GDEX Server for users to access online or via NCAR internal
 computers directly.
 
 This application is implemented to:
@@ -14,13 +14,13 @@ This application is implemented to:
     request types to allow users to submit data requests. Hostnames can be
     specified to control on which machines the data requests are processed.
     The requests are processed in either fully automated or specialist-controlled
-    mode. If a dataset or a group has a request control record set in RDADB
+    mode. If a dataset or a group has a request control record set in GDEXDB
     via 'dsrqst' for type 'M', users who have permission to view the HPSS data
     lists of the dataset or group are able to submit online data download
     requests
   - Divide a request further into partitions. The partitions are processed
     concurrently, one in each independent process.
-  - Provide web interfaces on RDA Server to allow users with permission to
+  - Provide web interfaces on GDEX Server to allow users with permission to
     select the HPSS data files for online download requests. Web interfaces
     for other request types, i.e. data subsets, are provided by DSS specialists.
     Detailed request information is passed to web utility program 'dsrqst.php'
@@ -35,11 +35,11 @@ This application is implemented to:
     reasons when they cannot check email to grant requests for a period
     of time
   - Build queued requests, or process queued request partitions, via a centralized
-    daemon 'dscheck'. The final requested data are staged on RDA Server for online
+    daemon 'dscheck'. The final requested data are staged on GDEX Server for online
     or background command-line access. Data files that are requested by multiple
     users are shared to reduce redundancy.
   - Purge online requests via the centralized daemon 'dscheck' or manually.
-    Information about purged requests is recorded in RDADB and later
+    Information about purged requests is recorded in GDEXDB and later
     gathered for data usage metrics via utility program 'viewrqstusage'.
   - Send an email notice to both the user who requested data and, optionally, to
     the specialist who processes the request, after a request is built successfully.
@@ -84,8 +84,7 @@ that help to submit, change request status, and check request status online are
 described at the end of the document.
 
 All 'dsrqst' configuration can be managed via online interface,
-https://rda.ucar.edu/interl/rda_config
-under the entry of DSRQST.
+https://gdex.ucar.edu/rda_pg_config under the entry of DSRQST.
 
 2 GENERAL DSRQST USAGE
 
@@ -120,13 +119,13 @@ command line or in input files. Input file names are specified via Info option
 -IF and can only be provided on the command line. Check the description of Info
 option -IF (-InputFile) for details on how to present options in input files.
 One or multiple input files, combined with options on the command line, can be
-used to run 'dsrqst'. The option name, -IF (-InputFile), itself can be omitted if a single
-input file is given on command line, and action and other option information are
-all provided inside the input file.
+used to run 'dsrqst'. The option name, -IF (-InputFile), itself can be omitted if
+a single input file is given on command line, and action and other option
+information are all provided inside the input file.
  
 When information about request controls, request partitions, request records, and
 requested files is retrieved, Info options are used to specify conditions for
-querying information from RDADB. Some special characters can be used to further
+querying information from GDEXDB. Some special characters can be used to further
 restrict the query with special conditions; they are '!', '<', '>' and '<>'.
 These special characters, if provided on the command line, must be quoted or
 escaped to avoid being interpreted by the Unix shell.
@@ -144,10 +143,10 @@ command line as
 A description is displayed for an option given either before or after -(h|help).
 If no option is specified or 'dsrqst' is issued by itself, this whole document
 is displayed per UNIX utility 'more'. A hard copy of this help document can be
-printed from the saved file: /local/dss/dssdb/prog_usage/dsrqst.usg.
+printed from the saved file, dsrqst.usg under python package rda_python_dsrqst/.
 
 #The online HTML version of this document is available at
-#http://dss.ucar.edu/internal/docs/dsrqst/
+#http://gdex-docs-dsrqst.readthedocs.io
 
 
 3 ACTION OPTIONS
@@ -159,13 +158,13 @@ automatically include other simpler actions by default; and others include
 additional actions when certain Mode options are present. Providing multiple
 Action options simultaneously is not allowed.
 
-Some actions set information into and some retrieve information from RDADB for
+Some actions set information into and some retrieve information from GDEXDB for
 one or multiple datasets.
 
 Based on the information being manipulated, the actions are divided into three
 categories:
  Request Control Actions - create, delete, modify and retrieve request control
-                           information in RDADB, of a given dataset/group and a request type,
+                           information in GDEXDB, of a given dataset/group and a request type,
          Request Actions - create, delete, modify and retrieve request information of
                            individual requests and the requested data files
  Request Process Actions - build requests by staging HPSS data online and purge requests
@@ -193,12 +192,12 @@ categories:
 
 3.1.1 Set Request Control Information
   -SC or -SetControl, creates and modifies request control information into
-  RDADB for given datasets, groups, and request types. One or multiple records
+  GDEXDB for given datasets, groups, and request types. One or multiple records
   can be processed each time.
 
   dsrqst -(SC|SetControl) [Mode Options]
         [-(CI|ControlIndex) RequestControlIndices]
-         -(DS|Dataset) dsnnn.n
+         -(DS|Dataset) dNNNNNN
         [-(GI|GroupIndex) GroupIndices]         # default to 0 if missed
         [-(RT|RequestType) RequestTypes]        # M, S, T, F, H, C, D, P, Q, R
         [-(CM|ControlMode) ControlMode]         # S or A
@@ -227,12 +226,12 @@ categories:
         [-(DB|Debug) DebugModeInfo]
 
   Mode options that can be specified for this action include:
-   -(MD|MyDataset) - sets information into RDADB no matter the specialist who
+   -(MD|MyDataset) - sets information into GDEXDB no matter the specialist who
                      runs 'dsrqst' owns the dataset or not
-  -(NC|NewControl) - sets a new request control record into RDADB for given dataset,
+  -(NC|NewControl) - sets a new request control record into GDEXDB for given dataset,
                      group index, and request type
 
-  If a request control record already exists in RDADB for a given request
+  If a request control record already exists in GDEXDB for a given request
   control index, the record is modified; otherwise, a new record is added if
   control index is 0 and Mode option -NC (-NewControl) is present. A group
   index of 0 means that the request control is for the whole dataset.
@@ -266,7 +265,7 @@ categories:
   request control record, this specialist will take responsibility for data
   requests of the dataset instead of the primary dataset owner.
  
-  For example, set request control information of d540006 via input file 'd540006.ctl'
+  For example, set request control information of d540006 via input file 'd540006.ctl':
 
   dsrqst SC -NC -IF d540006.ctl
 
@@ -284,7 +283,7 @@ ControlIndex<:>Dataset<:>GroupIndex<:>RequestType<:>ControlMode<:>Specialist<:>
   dsrqst -(GC|GetControl) [Mode Options]
         [-(FN|FieldNames) FieldNameString]
         [-(CI|ControlIndex) controlIndices]
-        [-(DS|Dataset) dsnnn.n]
+        [-(DS|Dataset) dNNNNNN]
         [-(GI|GroupIndex) GroupIndices]
         [-(RT|RequestType) RequestTypes]
         [-(CM|ControlMode) ControlMode]
@@ -346,13 +345,13 @@ ControlIndex<:>Dataset<:>GroupIndex<:>RequestType<:>ControlMode<:>Specialist<:>
   you simply provide option -SN with value of 'ALL'.
   
   For example, to get all request control information currently available with
-  all control fields under your control
-  
+  all control fields under your control:
+
   dsrqst GC -FN ALL
 
 3.1.3 Delete Request Control Information
   -DL or -Delete (Alias: -RM, -Remove), deletes one or multiple request control records
-  from RDADB for given request control indices.
+  from GDEXDB for given request control indices.
  
   dsrqst -(DL|Delete)
          -(CI|ControlIndex) RequestControlIndices
@@ -372,7 +371,7 @@ ControlIndex<:>Dataset<:>GroupIndex<:>RequestType<:>ControlMode<:>Specialist<:>
   Request and data file information can be viewed and modified via Actions
   included in this section:
           Get Request Information - retrieve information of existing requests in
-                                    RDADB
+                                    GDEXDB
           Set Request Information - add new or modify existing requests
        Delete Request Information - delete one or multiple request records
         Get Partition Information - retrieve information of existing partitions
@@ -394,7 +393,7 @@ ControlIndex<:>Dataset<:>GroupIndex<:>RequestType<:>ControlMode<:>Specialist<:>
         [-(FN|FieldNames) FieldNameString]
         [-(RI|RequestIndex) RequestIndices]
         [-(RN|RequestName) RequestNames]
-        [-(DS|Dataset) dsnnn.n]
+        [-(DS|Dataset) dNNNNNN]
         [-(EM|Email) UserEmailAddresses]
         [-(RT|RequestType) RequestTypes]
         [-(RS|RequestStatus) RequestStatus]
@@ -424,7 +423,7 @@ ControlIndex<:>Dataset<:>GroupIndex<:>RequestType<:>ControlMode<:>Specialist<:>
   R      -(RI|RequestIndex)     data request index
   Q      -(RN|RequestName)      request name/ID
   E      -(EM|Email)            email of the user who submitted the request
-  B      -(DS|Dataset)          dataset name/ID, dsnnn.n
+  B      -(DS|Dataset)          dataset name/ID, dNNNNNN
   I      -(GI|GroupIndex)       group index defined in table dsgroup
   T      -(RT|RequestType)      request type; HPSS, Subset, Format conversion 
   O      -(SQ|SizeRequest)      size of data files requested
@@ -457,7 +456,7 @@ ControlIndex<:>Dataset<:>GroupIndex<:>RequestType<:>ControlMode<:>Specialist<:>
   specialist who issues the getting request Action of 'dsrqst' are retrieved.
 
   For example, to get the request information for default fields and owned by
-  specialist login name 'zji' 
+  specialist login name 'zji':
 
   dsrqst GR -SN zji
 
@@ -467,7 +466,7 @@ RequestIndex<:>Email<:>Dataset<:>RequestType<:>SizeRequest<:>FileCount<:>DateReq
 ...
 
 3.2.2 Set Request Information
-  -SR or -SetRequest, creates and modifies data request information into RDADB
+  -SR or -SetRequest, creates and modifies data request information into GDEXDB
   for a given dataset number and/or groups. One or multiple records can be
   processed each time.
 
@@ -480,7 +479,7 @@ RequestIndex<:>Email<:>Dataset<:>RequestType<:>SizeRequest<:>FileCount<:>DateReq
   dsrqst -(SR|SetRequest) [Mode Options]
         [-(RI|RequestIndex) RequestIndices]
         [-(RN|RequestName) RequestNames]   # cannot be reset
-        [-(DS|Dataset) dsnnn.n]
+        [-(DS|Dataset) dNNNNNN]
         [-(EM|Email) UserEmailAddresses]
         [-(RT|RequestType) RequestTypes]
         [-(SQ|SizeRequest) RequestDataSize]
@@ -506,12 +505,12 @@ RequestIndex<:>Email<:>Dataset<:>RequestType<:>SizeRequest<:>FileCount<:>DateReq
   Mode option that can be specified for setting request Action:
     -(GU|GetUsage) - gets usage information of given requests and records into
                      order metrics
-   -(MD|MyDataset) - sets information into RDADB no matter the specialist who
+   -(MD|MyDataset) - sets information into GDEXDB no matter the specialist who
                      runs 'dsrqst' owns the dataset or not
-  -(NR|NewRequest) - sets a new request record into RDADB for given dataset,
+  -(NR|NewRequest) - sets a new request record into GDEXDB for given dataset,
                      group index and request type
 
-  If information of a request exists already in RDADB for a given request index
+  If information of a request exists already in GDEXDB for a given request index
   or request name per option -RI (-RequestIndex) or -RN (-RequestName), the
   request record is modified; otherwise, a new request record is added if 
   request index is 0 and Mode option -NR (-NewRequest) is present.
@@ -524,7 +523,7 @@ RequestIndex<:>Email<:>Dataset<:>RequestType<:>SizeRequest<:>FileCount<:>DateReq
   processed earlier by setting a higher priority per option -PO (-Priority),
   in case many requests are queued for processing.
   
-  For example, set request status to 'Q' as queued for request index 42
+  For example, set request status to 'Q' as queued for request index 42:
 
   dsrqst SR -RI 42 -RS Q
 
@@ -532,17 +531,17 @@ RequestIndex<:>Email<:>Dataset<:>RequestType<:>SizeRequest<:>FileCount<:>DateReq
   user. 
   
   For example, if you have the pre-processed data ready in a directory, you create a
-  new customized request as
+  new customized request as:
   
-  dsrqst SR -RI 0 -NR -DS dsnnn.n -EM UserEmail -DF DataFormat -RS Q -RT C
+  dsrqst SR -RI 0 -NR -DS dNNNNNN -EM UserEmail -DF DataFormat -RS Q -RT C
  
   then change directory to where data files sit and build the request by running
-  command
+  command:
   
   dsrqst BR -RI NewAddedRequestIndex -LF DataFileList
 
 3.2.3 Delete Request Information
-  -DL or -Delete, deletes one or multiple request records from RDADB for given
+  -DL or -Delete, deletes one or multiple request records from GDEXDB for given
   request indices and their associated data files.
 
   dsrqst -(DL|Delete) [Mode Options]
@@ -550,11 +549,11 @@ RequestIndex<:>Email<:>Dataset<:>RequestType<:>SizeRequest<:>FileCount<:>DateReq
         [-(DB|Debug) DebugModeInfo]
 
   Mode options that can be specified for this action include:
-    -(MD|MyDataset)  - sets information into RDADB no matter the specialist who
+    -(MD|MyDataset)  - sets information into GDEXDB no matter the specialist who
                        runs 'dsrqst' owns the dataset or not
-    -(UD|UnusedData) - checks and removes unused data under data/dsnnn.n
+    -(UD|UnusedData) - checks and removes unused data under data/dNNNNNN
  -(UF|UnstagedFiles) - checks and resets request file status for files that are not on disk
- -(UR|UnusedRequest) - checks and removes request directories that are on disk but not in RDADB
+ -(UR|UnusedRequest) - checks and removes request directories that are on disk but not in GDEXDB
  
   Use this action to delete a request before processing it. All data file 
   records under the request are also cleaned. A request index is mandatory
@@ -572,7 +571,7 @@ RequestIndex<:>Email<:>Dataset<:>RequestType<:>SizeRequest<:>FileCount<:>DateReq
         [-(FN|FieldNames) FieldNameString]
         [-(PI|PartitionIndex) PartitionIndices]
         [-(RI|RequestIndex) RequestIndices]
-        [-(DS|Dataset) dsnnn.n]
+        [-(DS|Dataset) dNNNNNN]
         [-(RS|RequestStatus) RequestStatus]
         [-(SN|Specialist) Specialists]
         [-(OF|OutputFile) OutputFileName]
@@ -591,7 +590,7 @@ RequestIndex<:>Email<:>Dataset<:>RequestType<:>SizeRequest<:>FileCount<:>DateReq
   Names  Info Options           Descriptions
   P      -(PI|PartitionIndex)   request partition index
   R      -(RI|RequestIndex)     data request index
-  B      -(DS|Dataset)          dataset name/ID, dsnnn.n
+  B      -(DS|Dataset)          dataset name/ID, dNNNNNN
   A      -(PS|PartitionStatus)  request partition status
   O      -(DO|DisplayOrder)     partition display order for a given request
   C      -(FC|FileCount)        number of data files in a partition
@@ -603,7 +602,7 @@ RequestIndex<:>Email<:>Dataset<:>RequestType<:>SizeRequest<:>FileCount<:>DateReq
   of 'dsrqst' are retrieved.
 
   For example, to get the partition information for default fields and owned by
-  specialist login name 'zji' 
+  specialist login name 'zji':
 
   dsrqst GP -SN zji
 
@@ -619,16 +618,16 @@ PartitionIndex<:>RequestIndex<:>Dataset<:>PartitionStatus<:>DisplayOrder<:>FileC
   dsrqst -(SP|SetPartition) [Mode Options]
         [-(PI|PartitionIndex) PartitionIndices]
         [-(RI|RequestIndex) RequestIndices]
-        [-(DS|Dataset) dsnnn.n]
+        [-(DS|Dataset) dNNNNNN]
         [-(FC|FileCount) FileCount]
         [-(PS|PartitionStatus) PartitionStatus]
         [-(DO|DisplayOrder) PartitionDisplayOrder]
         [-(DB|Debug) DebugModeInfo]
 
   Mode options that can be specified for setting partition Action:
-     -(MD|MyDataset) - sets information into RDADB regardless of whether the
+     -(MD|MyDataset) - sets information into GDEXDB regardless of whether the
                        specialist who runs 'dsrqst' owns the dataset
-  -(NP|NewPartition) - adds new partition records into RDADB for a given request
+  -(NP|NewPartition) - adds new partition records into GDEXDB for a given request
 
   Partitions cannot be added again if partition information of a request exists
   already. Specify request index per option -RI (-RequestIndex) and Mode option
@@ -644,7 +643,7 @@ PartitionIndex<:>RequestIndex<:>Dataset<:>PartitionStatus<:>DisplayOrder<:>FileC
         [-(RN|RequestName) RequestNames]
         [-(PI|PartitionIndex) PartitionIndices]
         [-(TI|TarfileIndex) TarFileIndices]
-        [-(DS|Dataset) dsnnn.n]
+        [-(DS|Dataset) dNNNNNN]
         [-(GI|GroupIndex) GroupIndices]
         [-(OT|SourceType) SourceDataType]
         [-(WF|WebFile) DataFileNames]
@@ -675,7 +674,7 @@ PartitionIndex<:>RequestIndex<:>Dataset<:>PartitionStatus<:>DisplayOrder<:>FileC
   P      -(PI|PartitionIndex)   request partition index
   T      -(TI|TarfileIndex)     tarfile index when this small file is tarred
   I      -(GI|GroupIndex)       group index
-  B      -(DS|Dataset)          dataset name/ID, dsnnn.n
+  B      -(DS|Dataset)          dataset name/ID, dNNNNNN
   L      -(SL|SourceLink)       source file name
   Z      -(OT|SourceType)       source data type, M - HPSS, W - Web
   Y      -(WT|WebFileType)      file type, Data, dOcument, Software
@@ -701,7 +700,7 @@ PartitionIndex<:>RequestIndex<:>Dataset<:>PartitionStatus<:>DisplayOrder<:>FileC
   instead of staging a new copy.
 
   For example, to get the data file information of partition index 42 for default
-  fields
+  fields:
 
   dsrqst GF -PI 13
 
@@ -711,7 +710,7 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
 ...
 
 3.2.7 Set Request File information
-  -SF or -SetFile, creates and modifies data file information into RDADB for
+  -SF or -SetFile, creates and modifies data file information into GDEXDB for
   given dataset/group(s)/file(s) of a specified request index. One or multiple
   remote files can be processed each time.
 
@@ -723,7 +722,7 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
         [-(RI|RequestIndex) RequestIndices]
         [-(PI|PartitionIndex) PartitionIndices]
         [-(TI|tarFileIndex) TarfileIndices]
-        [-(DS|Dataset) dsnnn.n]
+        [-(DS|Dataset) dNNNNNN]
         [-(GI|GroupIndex) GroupIndices]
         [-(SL|SourceLink) SourceDataID]
         [-(OT|SourceType) SourceDataType]
@@ -738,14 +737,14 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
         [-(DB|Debug) DebugModeInfo]
 
   Mode option that can be specified for setting data file Action:
-   -(MD|MyDataset) - sets information into RDADB no matter the specialist who
+   -(MD|MyDataset) - sets information into GDEXDB no matter the specialist who
                      runs 'dsrqst' owns the dataset or not
   -(RO|ResetOrder) - resets the display order indices of the data file
                      records according to the order as they are given per
                      option -WF (-WebFile)
 
 3.2.8 Delete Request File Information
-  -DL or -Delete, deletes one or multiple request file records from RDADB for
+  -DL or -Delete, deletes one or multiple request file records from GDEXDB for
   given data file names.
 
   dsrqst -(DL|Delete) [Mode Options]
@@ -754,7 +753,7 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
         [-(DB|Debug) DebugModeInfo]
 
   Mode options that can be specified for this action include:
-    -(MD|MyDataset)  - sets information into RDADB no matter the specialist who
+    -(MD|MyDataset)  - sets information into GDEXDB no matter the specialist who
                        runs 'dsrqst' owns the dataset or not
  
   Use this action to delete request files. Request Index must be provided.
@@ -770,7 +769,7 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
         [-(PI|PartitionIndex) PartitionIndices]
         [-(TI|TarfileIndex) TarFileIndices]
         [-(WF|WebFile) TarFileNames]
-        [-(DS|Dataset) dsnnn.n]
+        [-(DS|Dataset) dNNNNNN]
         [-(GI|GroupIndex) GroupIndices]
         [-(SZ|Size) TarFileSize]
         [-(DF|DataFormat) DataFormat]
@@ -797,7 +796,7 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
   Q      -(RN|RequestName)      request name/ID
   P      -(PI|PartitionIndex)   request partition index
   I      -(GI|GroupIndex)       group index
-  B      -(DS|Dataset)          dataset name/ID, dsnnn.n
+  B      -(DS|Dataset)          dataset name/ID, dNNNNNN
   F      -(WF|WebFile)          tar file name
   S      -(SZ|Size)             data file size
   M      -(DF|DataFormat)       data format, i.e. GRIB, NetCDF
@@ -811,7 +810,7 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
   option -RI (-RequestIndex) or partition indices per option -PI (-PartitionIndex).
 
 3.2.10 Set Tar File information
-  -ST or -SetTarfile, modifies tar file information into RDADB for given
+  -ST or -SetTarfile, modifies tar file information into GDEXDB for given
   condition. One or multiple tar files can be processed each time.
 
   Although a tar file record can be modified by a specialist, it is rarely
@@ -822,7 +821,7 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
         [-(RI|RequestIndex) RequestIndices]
         [-(PI|PartitionIndex) PartitionIndices]
         [-(TI|tarFileIndex) TarfileIndices]
-        [-(DS|Dataset) dsnnn.n]
+        [-(DS|Dataset) dNNNNNN]
         [-(GI|GroupIndex) GroupIndices]
         [-(WF|WebFile) DataFileNames]
         [-(SZ|Size) DataFileSize]
@@ -834,7 +833,7 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
         [-(DB|Debug) DebugModeInfo]
 
   Mode option that can be specified for setting tar file Action:
-   -(MD|MyDataset) - sets information into RDADB no matter the specialist who
+   -(MD|MyDataset) - sets information into GDEXDB no matter the specialist who
                      runs 'dsrqst' owns the dataset or not
   -(RO|ResetOrder) - resets the display order indices of the tar file
                      records according to the order as they are given per
@@ -847,7 +846,7 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
   dsrqst -(ER|EmailRequest)
         [-(RI|RequestIndex) RequestIndices]
         [-(RN|RequestName) RequestNames]
-        [-(DS|Dataset) dsnnn.n]
+        [-(DS|Dataset) dNNNNNN]
         [-(EM|Email) UserEmailAddresses]
         [-(RT|RequestType) RequestTypes]
         [-(RS|RequestStatus) RequestStatus]
@@ -873,7 +872,7 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
   A request can only be processed manually by a specialist who is listed as
   the one who controls the request.
 
-  Data files of a processed request are staged on RDA Server temporarily for
+  Data files of a processed request are staged on GDEX Server temporarily for
   online download or access via NCAR internal computers. A DSS specialist can also
   purge a request manually at due time by providing the request index to run
   'dsrqst' with Action -PR (-PurgeRequest).
@@ -887,7 +886,7 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
            Change Purge Time - change purge time of online requests for them
                                to be purged later or sooner
    Clean Request Information - clean one or multiple requests by deleting the files
-                               built and file records created in RDADB
+                               built and file records created in GDEXDB
   Unlock Request Information - unlock one or multiple request records for
                                them to be rebuilt on a different host
           Interrupt Requests - interrupt Queued requests by setting their
@@ -1133,7 +1132,7 @@ are all optional. No values should follow any Mode option.
   too if no email is wanted for any situation.
 
   For example, rebuild request 27208 that is not in status Q and no email needs to
-  be sent and no filelist needs to be published
+  be sent and no filelist needs to be published:
 
   dsrqst BR -RI 27208 -RS Q -NE -NO
 
@@ -1152,7 +1151,7 @@ are all optional. No values should follow any Mode option.
   explicitly provide the order index values per Info option -DO
   (-DisplayOrder). Valid values are 1, 2, 3, ...
 
-  -UD or -UnusedData, checks and removes unused data under data/dsnnn.n with
+  -UD or -UnusedData, checks and removes unused data under data/dNNNNNN with
   Action -DL (-Delete). Files are only physically removed if Mode option -FP
   is present.
 
@@ -1160,7 +1159,7 @@ are all optional. No values should follow any Mode option.
   not on disk with Action -DL (-Delete).
 
   -UR or -UnusedRequest, with Action -DL (-Delete), checks and removes request
-  directories that are still on disk but no longer in RDADB. Directories are only
+  directories that are still on disk but no longer in GDEXDB. Directories are only
   physically removed if Mode option -FP is present.
 
   -WD or -WithDataset, gets the dataset ID for Actions -GF (-GetFile) and -GT (-GetTarFile).
@@ -1185,7 +1184,7 @@ Information options are used to pass information, one or multiple values, into
 
   -BP or -BatchProcess (Alias: -d, -DelayedMode), delayed mode execution. When
   present, the 'dsrqst' command is not executed right away, but the command
-  information is recorded into RDADB instead and the command is executed later
+  information is recorded into GDEXDB instead and the command is executed later
   by the centralized daemon 'dscheck'. One or multiple host names can be specified
   after option -BP to force the 'dsrqst' command to be executed on or not on the hosts.
   For examples, '-d evans' to run on host 'evans'; '-d evans:mirage5' to run on
@@ -1259,7 +1258,7 @@ Information options are used to pass information, one or multiple values, into
   into 'dsrqst'. At least one value must follow each multi-value option.
 
   -AF or -ArchiveFormat (Alias: -FF|-FileFormat|-ExternalFormat), for file
-  archiving formats of data files being staged onto RDA Server for download.
+  archiving formats of data files being staged onto GDEX Server for download.
   The file archive format indicates post-processing of a data file. COS blocking
   on the original data files, for option values, 'BI' - binary blocked, 'C1' or
   'CH' - ASCII/character blocked, are automatically unblocked for the data files
@@ -1285,7 +1284,7 @@ Information options are used to pass information, one or multiple values, into
 
   For example, to make a carbon copy email to 'schuster@ucar.edu' for processing
   results of request index 42, provide Info option -CC with login user name
-  'schuster'
+  'schuster':
 
   dsrqst BR -RI 42 -CC schuster
   
@@ -1317,7 +1316,7 @@ Information options are used to pass information, one or multiple values, into
   final request data output web page. 
 
   -DF or -DataFormat (Alias: -ContentFormat|-InternalFormat), data content
-  format of files being staged on RDA Server for download. This is content
+  format of files being staged on GDEX Server for download. This is content
   format of data files. For example, NetCDF, IMMA, etc.
   
   -DO or -DisplayOrder, for display order indices of data files of a given
@@ -1385,7 +1384,7 @@ Information options are used to pass information, one or multiple values, into
   its host name field is set.  
   
   For example, set request control record of Control Index 67 of d540000 to
-  control its associated requests to be processed on bross and evans only
+  control its associated requests to be processed on bross and evans only:
  
   dsrqst SC -CI 67 -HN bross:evans
 
@@ -1517,9 +1516,9 @@ Information options are used to pass information, one or multiple values, into
   -SL or -SourceLink, a file name of original data. For type 'M' request,
   this is a HPSS file name; for type 'W', it is a web file.
  
-  -SN or -Specialist, sets the login name of a specialist in RDADB for request
+  -SN or -Specialist, sets the login name of a specialist in GDEXDB for request
   control records and request records. When the requests are handled, the system
-  login name is validated against the one saved in RDADB; the request
+  login name is validated against the one saved in GDEXDB; the request
   handling processes, both building and purging requests, are blocked if they
   do not match.
 
@@ -1532,7 +1531,7 @@ Information options are used to pass information, one or multiple values, into
   request files, or 'N' for no.
 
   -TF or -ToFormat (Alias: -OutputFormat|-ProductFormat), string of ':' delimited
-  data format(s) of output files being staged on RDA Server for download after
+  data format(s) of output files being staged on GDEX Server for download after
   conversion of data files or subsetting results. These are content formats of
   output data files. For example, NETCDF:GRIB.
 
@@ -1564,7 +1563,7 @@ Information options are used to pass information, one or multiple values, into
   -WF or -WebFile, data file name staged online.
 
   -WH or -WebHomeDir (Alias: -DownloadDir|-OnlineDir), specify a download directory on
-  RDA Server to stage the temporary data files for the download/archive activity.
+  GDEX Server to stage the temporary data files for the download/archive activity.
 
   -WT or -WebFileType, file types for the requested data; D-Data, O-dOcument
   and S-Software.
@@ -1575,7 +1574,7 @@ Several online utility programs are created to complement 'dsrqst' for:
 
   Program 'dsrqst.php' - generates new request records according to information
                          passed in via HTTP POST entries; get online help at
-                         https://rda.ucar.edu/php/dsrqst.php
+                         https://gdex.ucar.edu/php/dsrqst.php
   Program 'wqrqst.php' - puts waiting requests in queue to grant permissions for
                          the specialist-controlled requests to be processed
   Program 'ckrqst.php' - checks current status of requests under specified condition

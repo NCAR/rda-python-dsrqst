@@ -54,7 +54,7 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
          'FP' : [0, 'ForcePurge',    0],
          'GU' : [0, 'GetUsage',      0],
          'GZ' : [0, 'GMTZone',       0],
-         'MD' : [0, 'PgDataset',     2],
+         'MD' : [0, 'MyDataset',     2],
          'NC' : [0, 'NewControl',    0],   # for SC, allow adding new request controls
          'NE' : [0, 'NoEmail',       0],
          'NO' : [0, 'NotOnline',     0],
