@@ -18,8 +18,8 @@ This application is implemented to:
     record set in RDADB via 'dsrqst' for type 'M', the users, who have
     permission to view the HPSS data lists of the dataset or group, are able to
     submit online data download requests
-  - Divide A request further into partitions. The partitions are processed 
-    concurrently, one in each independent process. 
+  - Divide a request further into partitions. The partitions are processed
+    concurrently, one in each independent process.
   - Provide web interfaces on RDA Server to allow users with permission to
     select the HPSS data files for online download requests. Web interfaces
     for other request types, i.e. data subsets, are provided by DSS specialists.
@@ -78,7 +78,7 @@ control record.
 
 In the following sections, general usage of 'dsrqst' is described first; and 
 detail descriptions of different options are given next; and examples are
-interspersed through out the document. Other utility programs, such as 'dsrqst.php',
+interspersed throughout the document. Other utility programs, such as 'dsrqst.php',
 that help to submit, change request status, and check request status online are
 described at the end of the document.
 
@@ -133,7 +133,7 @@ The '!', or \!, means exclusion to the following value(s) and it must be the
 first value following an Info option name, while '<' or '>' mean greater or
 less than the following value and '<>' means between the following two values.
 Combine '!' and '<', as syntax "'!' '<' OptionValue", to make a condition of
-'large than or equal to OptionValue'.
+'greater than or equal to OptionValue'.
 
 Description of an individual option is displayed if 'dsrqst' is issued on 
 command line as
@@ -186,9 +186,9 @@ categories:
      Get Request Control Information - retrieve information of existing request controls
   Delete Request Control Information - delete one or multiple request control records
          Get Source File information - retrieve including source file information
-         Set Source File information - addd new or modify including source file information
+         Set Source File information - add new or modify including source file information
       Delete Source File Information - delete one or multiple including source file records
-                                       of an specified request control
+                                       of a specified request control
 
 3.1.1 Set Request Control Information
   -SC or -SetControl, creates and modifies request control information into
@@ -199,7 +199,7 @@ categories:
         [-(CI|ControlIndex) RequestControlIndices]
          -(DS|Dataset) dsnnn.n
         [-(GI|GroupIndex) GroupIndices]         # default to 0 if missed
-         -(RT|RequestType) RequestTypes]        # M, S, T, F, H, C, D, P, Q, R
+        [-(RT|RequestType) RequestTypes]        # M, S, T, F, H, C, D, P, Q, R
         [-(CM|ControlMode) ControlMode]         # S or A
         [-(VP|ValidPeriod)  NumberDaysDataAvailable] 
         [-(LM|RequestLimit) RequestLimitInGB]
@@ -228,7 +228,7 @@ categories:
   Mode option that can be specified for this action include:
    -(MD|MyDataset) - sets information into RDADB no matter the specialist who
                      runs 'dsrqst' owns the dataset or not
-  -(NC|NewRequest) - sets a new request control record into RDADB for given dataset, 
+  -(NC|NewControl) - sets a new request control record into RDADB for given dataset,
                      group index, and request type
 
   If information of a request control exists already in RDADB for a given
@@ -239,7 +239,7 @@ categories:
   for each request control record.
 
   Partitions are used to divide a large request, involving many files, into
-  smaller paritions (maximum 64). All partitions may be processed concurrently
+  smaller partitions (maximum 64). All partitions may be processed concurrently
   if enough computer resource is available. To turn on partition functionality for
   a request control configuration, DECS specialists need 1. in the customized
   ProcessCommand, specified for the request control, make sure to process the
@@ -249,16 +249,16 @@ categories:
   executed in the later partition process; 2. set either Partition Limit or Size in
   the request control configuration via -PL (-PartitionLimit) or -PZ (-PartitionSize);
   3. optionally set the command call flag, via -PF (-PartitionFlag), to control how
-  the request control command is called. The parition flag is defaulted to N for the
-  request control ommand is called, as in form of 'CustomizedCommand RequestIndex',
-  intially once to generate the wfrqst file records, and DSRQST will then take care of 
+  the request control command is called. The partition flag is defaulted to N for the
+  request control command is called, as in form of 'CustomizedCommand RequestIndex',
+  initially once to generate the wfrqst file records, and DSRQST will then take care of
   partitioning and building individual files. Set the flag to P for DSRQST to call
-  the reuqest control command again for each partition process in the form of
+  the request control command again for each partition process in the form of
   'CustomizedCommand RequestIndex RequestDirectory PartitionIndex', and then
   the commands to build individual files in field wfrqst.command are optional for
   flag value of P. If the partition flag is set to F, the request control command is
-  called, in form of 'CustomizedCommand RequestIndex RequstrDirectory',  finally
-  again after all the paritions are processed successfully. Set the flag to B if
+  called, in form of 'CustomizedCommand RequestIndex RequestDirectory', finally
+  again after all the partitions are processed successfully. Set the flag to B if
   P and F are both required.
 
   If a DSS specialist, other than the primary dataset owner, is set for a
@@ -377,7 +377,7 @@ ControlIndex<:>Dataset<:>GroupIndex<:>RequestType<:>ControlMode<:>Specialist<:>
         Get Partition Information - retrieve information existing partitions
         Set Partition Information - add new or modify existing partitions  
      Get Request File information - retrieve data file information
-     Set Request File information - addd new or modify file information
+     Set Request File information - add new or modify file information
   Delete Request File Information - delete one or multiple data file records of
                                     a specified request
          Get Tar File information - retrieve tar file information
@@ -386,7 +386,7 @@ ControlIndex<:>Dataset<:>GroupIndex<:>RequestType<:>ControlMode<:>Specialist<:>
 3.2.1 Get Request Information
   -GR or -GetRequest, retrieves data request information for specified requests
   if the request indices are provided. Without specified condition, the
-  information of requests, owned by the current specialist who execute this 
+  information of requests, owned by the current specialist who executes this
   Action of 'dsrqst', are retrieved.
  
   dsrqst -(GR|GetRequest) [Mode Options]
@@ -395,10 +395,10 @@ ControlIndex<:>Dataset<:>GroupIndex<:>RequestType<:>ControlMode<:>Specialist<:>
         [-(RN|RequestName) RequestNames]
         [-(DS|Dataset) dsnnn.n]
         [-(EM|Email) UserEmailAddresses]
-        [-(RT|ReuqestType) RequestTypes]
+        [-(RT|RequestType) RequestTypes]
         [-(RS|RequestStatus) RequestStatus]
         [-(TA|TArflag) TarFlag]
-        [-(DQ|DateReuqest) DateRequestSubmit]
+        [-(DQ|DateRequest) DateRequestSubmit]
         [-(DR|DateReady)   DateRequestProcess]
         [-(DP|DatePurge) DateRequestPurge]
         [-(DF|DataFormat)  DefaultDataFormat] 
@@ -420,7 +420,7 @@ ControlIndex<:>Dataset<:>GroupIndex<:>RequestType<:>ControlMode<:>Specialist<:>
   Valid field names of requests and their corresponding Info option names:
 
   Names  Info Options           Descriptions
-  R      -(RI|ReuqstIndex)      data request index
+  R      -(RI|RequestIndex)     data request index
   Q      -(RN|RequestName)      request name/ID
   E      -(EM|Email)            email of user submitted request
   B      -(DS|Dataset)          dataset name/ID, dsnnn.n
@@ -481,14 +481,14 @@ RequestIndex<:>Email<:>Dataset<:>RequestType<:>SizeRequest<:>FileCount<:>DateReq
         [-(RN|RequestName) RequestNames]   # cannot be reset
         [-(DS|Dataset) dsnnn.n]
         [-(EM|Email) UserEmailAddresses]
-        [-(RT|ReuqestType) RequestTypes]
+        [-(RT|RequestType) RequestTypes]
         [-(SQ|SizeRequest) RequestDataSize]
         [-(SI|SizeInput) DataSizeProcessed]
         [-(FC|FileCount) FileCount]
         [-(RS|RequestStatus) RequestStatus]
         [-(TA|TArflag) TarFlag]
-        [-(DQ|DateReuqest) DateSubmitted]
-        [-(TQ|TimeReuqest) TimeSubmitted]
+        [-(DQ|DateRequest) DateSubmitted]
+        [-(TQ|TimeRequest) TimeSubmitted]
         [-(DR|DateReady) DateProcessed]
         [-(TR|TimeReady) TimeProcessed]
         [-(DP|DatePurge) DateDuePurge]
@@ -507,7 +507,7 @@ RequestIndex<:>Email<:>Dataset<:>RequestType<:>SizeRequest<:>FileCount<:>DateReq
                      order metrics
    -(MD|MyDataset) - sets information into RDADB no matter the specialist who
                      runs 'dsrqst' owns the dataset or not
-  -(NR|NewReqeust) - sets a new request record into RDADB for given dataset, 
+  -(NR|NewRequest) - sets a new request record into RDADB for given dataset,
                      group index and request type
 
   If information of a request exists already in RDADB for a given request index
@@ -527,7 +527,7 @@ RequestIndex<:>Email<:>Dataset<:>RequestType<:>SizeRequest<:>FileCount<:>DateReq
 
   dsrqst SR -RI 42 -RS Q
 
-  A customized request can be created to stage exsiting data prepared for a specific
+  A customized request can be created to stage existing data prepared for a specific
   user. 
   
   For example, If you have the pre-processed data ready in a directory, you create a
@@ -552,9 +552,8 @@ RequestIndex<:>Email<:>Dataset<:>RequestType<:>SizeRequest<:>FileCount<:>DateReq
     -(MD|MyDataset)  - sets information into RDADB no matter the specialist who
                        runs 'dsrqst' owns the dataset or not
     -(UD|UnusedData) - checks and removes unused data under data/dsnnn.n
- -(UF|UnstagedFiles) - checks and removes request directories if the requests are
-                       not in RDADB
- -(UR|UnusedRequest) - checks and reset request file status for files are not on disk
+ -(UF|UnstagedFiles) - checks and resets request file status for files that are not on disk
+ -(UR|UnusedRequest) - checks and removes request directories that are on disk but not in RDADB
  
   Use this action to delete a request before processing it. All data file 
   records under the request are also cleaned. A Request index is mandatory
@@ -570,7 +569,7 @@ RequestIndex<:>Email<:>Dataset<:>RequestType<:>SizeRequest<:>FileCount<:>DateReq
  
   dsrqst -(GP|GetPartition) [Mode Options]
         [-(FN|FieldNames) FieldNameString]
-        [-(PI|PartititonIndex) PartitionIndices]
+        [-(PI|PartitionIndex) PartitionIndices]
         [-(RI|RequestIndex) RequestIndices]
         [-(DS|Dataset) dsnnn.n]
         [-(RS|RequestStatus) RequestStatus]
@@ -584,15 +583,15 @@ RequestIndex<:>Email<:>Dataset<:>RequestType<:>SizeRequest<:>FileCount<:>DateReq
                        of a given field
 
   Use Info option -FN (-FieldNames) to specify what partition fields to be
-  retrieved. It defaults all available fields.
+  retrieved. It defaults to all available fields.
 
   Valid field names of requests and their corresponding Info option names:
 
   Names  Info Options           Descriptions
   P      -(PI|PartitionIndex)   request partition index
-  R      -(RI|ReuqstIndex)      data request index
+  R      -(RI|RequestIndex)     data request index
   B      -(DS|Dataset)          dataset name/ID, dsnnn.n
-  A      -(PS|PartitonStatus)   request partition status
+  A      -(PS|PartitionStatus)  request partition status
   O      -(DO|DisplayOrder)     partition display order for a given request
   C      -(FC|FileCount)        number of data files in a partition
   S      -(SN|Specialist)       DSS specialist who owns the request record
@@ -622,7 +621,7 @@ PartitionIndex<:>RequestIndex<:>Dataset<:>PartitionStatus<:>DisplayOrder<:>FileC
         [-(DS|Dataset) dsnnn.n]
         [-(FC|FileCount) FileCount]
         [-(PS|PartitionStatus) PartitionStatus]
-        [-(DO|Displayrder) PartitionDisplayOrder]
+        [-(DO|DisplayOrder) PartitionDisplayOrder]
         [-(DB|Debug) DebugModeInfo]
 
   Mode option that can be specified for setting request Action:
@@ -630,7 +629,7 @@ PartitionIndex<:>RequestIndex<:>Dataset<:>PartitionStatus<:>DisplayOrder<:>FileC
                        runs 'dsrqst' owns the dataset or not
   -(NP|NewPartition) - adds new partition records into RDADB for given request
 
-  Partitions cannot be added again if parttion information of a request exists
+  Partitions cannot be added again if partition information of a request exists
   already. Specify request index per option -RI (-RequestIndex) and Mode option
   -NP (-NewPartition) to add partitions.
 
@@ -670,9 +669,9 @@ PartitionIndex<:>RequestIndex<:>Dataset<:>PartitionStatus<:>DisplayOrder<:>FileC
   Valid field names of data files and their corresponding Info option names:
 
   Names  Info Options           Descriptions
-  R      -(RI|ReuqstIndex)      data request index
+  R      -(RI|RequestIndex)     data request index
   Q      -(RN|RequestName)      request name/ID
-  P      -(PI|ParitionIndex)    request partition index
+  P      -(PI|PartitionIndex)   request partition index
   T      -(TI|TarfileIndex)     tarfile index for this small file is tarred
   I      -(GI|GroupIndex)       group index
   B      -(DS|Dataset)          dataset name/ID, dsnnn.n
@@ -682,7 +681,7 @@ PartitionIndex<:>RequestIndex<:>Dataset<:>PartitionStatus<:>DisplayOrder<:>FileC
   F      -(WF|WebFile)          file name online
   A      -(FS|FileStatus)       file status, R - requested, O - online
   S      -(SZ|Size)             data file size
-  C      -(PC|ProcessCommand)   command to process this reuqest file
+  C      -(PC|ProcessCommand)   command to process this request file
   M      -(DF|DataFormat)       data format, i.e. GRIB, NetCDF
   N      -(AF|ArchiveFormat)    archive format, i.e. TAR, GZ
   O      -(DO|DisplayOrder)     order the file shown on webpage
@@ -715,7 +714,7 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
   given dataset/group(s)/file(s) of a specified request index. One or multiple
   remote files can be processed each time.
 
-  Although a data file record can be modified by a specialist, it is raely
+  Although a data file record can be modified by a specialist, it is rarely
   needed. A data file record is normally either generated per Web interfaces
   that accept submission of data requests or built per subsetting programs.
 
@@ -793,9 +792,9 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
 
   Names  Info Options           Descriptions
   T      -(TI|TarfileIndex)     tarfile index for this small file is tarred
-  R      -(RI|ReuqstIndex)      data request index
+  R      -(RI|RequestIndex)     data request index
   Q      -(RN|RequestName)      request name/ID
-  P      -(PI|ParitionIndex)    request partition index
+  P      -(PI|PartitionIndex)   request partition index
   I      -(GI|GroupIndex)       group index
   B      -(DS|Dataset)          dataset name/ID, dsnnn.n
   F      -(WF|WebFile)          tar file name
@@ -814,7 +813,7 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
   -ST or -SetTarfile, modifies tar file information into RDADB for given
   condition. One or multiple tar files can be processed each time.
 
-  Although a tar file record can be modified by a specialist, it is raely
+  Although a tar file record can be modified by a specialist, it is rarely
   needed. Tar file records are normally generated for a successfully-built
   request with many small data files.
 
@@ -849,13 +848,13 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
         [-(RN|RequestName) RequestNames]
         [-(DS|Dataset) dsnnn.n]
         [-(EM|Email) UserEmailAddresses]
-        [-(RT|ReuqestType) RequestTypes]
+        [-(RT|RequestType) RequestTypes]
         [-(RS|RequestStatus) RequestStatus]
-        [-(DQ|DateReuqest) DateRequestSubmit]
+        [-(DQ|DateRequest) DateRequestSubmit]
         [-(DR|DateReady)   DateRequestProcess]
         [-(DP|DatePurge) DateRequestPurge]
-        [-(DF|DataFormat)  DefaultDataFormat] 
-        [-(AF|ArchiveFormat)  DefaultArchiveFormat] 
+        [-(DF|DataFormat)  DefaultDataFormat]
+        [-(AF|ArchiveFormat)  DefaultArchiveFormat]
         [-(SN|Specialist) Specialists]
         [-(EL|EmailLimit) MaximumChecks]
         [-(CC|CarbonCopy) Cc'dEmailAddresses]
@@ -867,9 +866,9 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
 
 3.3 Request Process Actions
 
-  In addition to be started by the centralized daemon 'dscheck', request processes
-  can be started manually by DSS specialists can process manually, providing
-  request indices while executing Action -BR (-BuildRequest) of 'dsrqst'. 
+  In addition to being started by the centralized daemon 'dscheck', request processes
+  can be started manually by DSS specialists by providing request indices while
+  executing Action -BR (-BuildRequest) of 'dsrqst'.
   A request can only be processed manually by a specialist who is listed as
   the one who controls the request.
 
@@ -924,7 +923,7 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
                      standard outputs and errors
      -(GZ|GMTZone) - uses GMT dates/times as controlling times
      -(NE|NoEmail) - does not send email to the specialist after update
-   -(NO|NotOnline) - does not publish fielist after update and set request status to N
+   -(NO|NotOnline) - does not publish filelist after update and set request status to N
 
   A request must be in status of "Q" (Queued) for it can be processed. To
   process a request, DSS specialist must also be the owner of the request.
@@ -959,7 +958,7 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
                      standard outputs and errors
      -(GZ|GMTZone) - uses GMT dates/times as controlling times
      -(NE|NoEmail) - does not send email to the specialist after update
-   -(NO|NotOnline) - does not publish fielist after update and set request status to N
+   -(NO|NotOnline) - does not publish filelist after update and set request status to N
 
   A partition must be in status of "Q" (Queued) for it can be processed. To
   process a partition, DSS specialist must also be the owner of the partition.
@@ -1005,7 +1004,7 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
         [-(RN|RequestName) RequestNames]
         [-(DP|DatePurge) DateDuePurge]
         [-(TP|TimePurge) TimeDuePurge]
-        [-(LN|LoginName SpecialistLoginName)
+        [-(LN|LoginName) SpecialistLoginName]
         [-(DB|Debug) DebugModeInfo]
 
   Mode option that can be specified for purging request Action:
@@ -1084,7 +1083,7 @@ godas.P.198306.tar<:>61160<:>13<:>196544000<:>GZ.TAR<:>GRIB1<:>O<:>
          [-(DB|Debug) DebugModeInfo]
 
   The request status of the restored request records is set to 'W' for Wait as
-  default, and it can be set to an other value, such as 'Q' for Queue, if provided
+  default, and it can be set to another value, such as 'Q' for Queue, if provided
   on the command line.
 
 
@@ -1103,7 +1102,7 @@ are all optional. No value is allowed to be passed in following any Mode option.
   -CS or -CheckStatus, if present, checks and displays more detailed status
   information of each request. To show process progress in percentage, fields
   dsrqst.fcount or dsrqst.size_request must not be empty, and wfrqst.status must
-  be set to 'O' for echo finished data file record.
+  be set to 'O' for each finished data file record.
 
   -FI or -ForceInterrupt, if present, force interrupts a request that is still
   under building; otherwise a warning message will display.
@@ -1130,7 +1129,7 @@ are all optional. No value is allowed to be passed in following any Mode option.
   -NO or -NotOnline, does not publish filelist after update and set the request 
   status to N. No normal email is send either since the data are not ready online,
   but error message, if any, is still sent to specialist. Add Mode option -NE
-  too if no email is wanted fo any situation.
+  too if no email is wanted for any situation.
 
   For example, rebuild request 27208 that is not in status Q and no email needs to
   be sent and no filelist needs to be published
@@ -1164,7 +1163,7 @@ are all optional. No value is allowed to be passed in following any Mode option.
   
   -WD or -WithDataset, get the dataset ID for Actions -GF (-GetFile) and -GT (-GetTarFile).
 
-  -WE or -WithEmail, forces to send email to requester after the a filelist being
+  -WE or -WithEmail, forces to send email to requester after a filelist being
   republished successfully for a request. It works with Action -RP (-ResetPurge|RePublish).
 
 
@@ -1183,16 +1182,16 @@ Information options are used to pass information, one or multiple values, into
   error message is displayed if no value or more than one value passed in.
 
   -BP or -BatchProcess (Alias: -d, -DelayedMode), delayed mode execution. When
-  it presents, the 'dsrqst' command is not executed right way, but the command
+  it presents, the 'dsrqst' command is not executed right away, but the command
   information is recorded into RDADB instead and the command is executed later
   by the centralized daemon 'dscheck'. One or multiple host names can be specified
   after option -BP to force the 'dsrqst' command be executed on or not on the hosts.
   For examples, '-d evans' to run on host 'evans'; '-d evans:mirage5' to run on
-  hosts 'evans' and 'mirage5'; and '-d \!migage1:mirage2' to run on all configured
-  hosts other than 'mirage1' and 'mirgae2'. Character '!' needs to be escaped for
-  passing in on command line. A upper limit for number of tries can also be passed
-  in with this options, 1 to 99, as '-d 2' for example. It default to 1 for cammand
-  of 'dsrqst' if not specified. 
+  hosts 'evans' and 'mirage5'; and '-d \!mirage1:mirage2' to run on all configured
+  hosts other than 'mirage1' and 'mirage2'. Character '!' needs to be escaped for
+  passing in on command line. An upper limit for number of tries can also be passed
+  in with this option, 1 to 99, as '-d 2' for example. It defaults to 1 for a command
+  of 'dsrqst' if not specified.
 
   -DV or -Divider (Alias: -Delimiter, -Separator),  delimiter for separating
   columns of multi-value Info options in input files. It is default to '<:>'.
@@ -1257,14 +1256,14 @@ Information options are used to pass information, one or multiple values, into
 5.2 Multi-Value Info Options
 
   A multi-value Info option is used to pass multiple values for one Info option
-  into 'dsrqst'. At lease one value must follow each multi-value option.
+  into 'dsrqst'. At least one value must follow each multi-value option.
 
   -AF or -ArchiveFormat (Alias: -FF|-FileFormat|-ExternalFormat), for file
   archiving formats of data files being staged onto RDA Server for download.
   The file archive format indicates post process of a data file. COS blocking
   on the original data files, for option values, 'BI' - binary blocked, 'C1' or
   'CH' - ASCII/character blocked, are automatically unblocked for the data files
-  and the the COS block options are stripped from archive format values. Option
+  and the COS block options are stripped from archive format values. Option
   value 'TAR' means a tarred file, 'Z' means a compressed file, 'GZ' means a
   gzipped file, and 'BZ2' means a file is compressed via bzip2. 'TAR.GZ', for
   example, means a file is tarred and then gzipped; the order is important. The
@@ -1291,7 +1290,7 @@ Information options are used to pass information, one or multiple values, into
   dsrqst BR -RI 42 -CC schuster
   
   -CI or -ControlIndex, automatically generated control index for a request
-  control record when it is first added for a given dataset and/ or group index.
+  control record when it is first added for a given dataset and/or group index.
 
   -CM or -ControlMode (Alias: -ControlMethod), sets request control Mode for a
   request control record. 'S' for specialist-control mode and 'A' for automated
@@ -1361,7 +1360,7 @@ Information options are used to pass information, one or multiple values, into
 
   -EV or -Environments, (Alias: -Envs), specifies environment variables, in form of 
   VarName=VarValue and separated by ',', needed to be set to run 'dsrqst' as a batch
-  job. The environment varaibles will be set in the batch starting script.
+  job. The environment variables will be set in the batch starting script.
 
   For environment variables with a leading '!' it is treated as an executable
   command and its returned string is used as a dynamically created variable string
@@ -1421,8 +1420,8 @@ Information options are used to pass information, one or multiple values, into
   files for customized data.
 
   -LM or -RequestLimit, 0 means to use system default 40 GB limit. It sets
-  the number of GB for up limit of data that can berequested each time. This
-  limit should be checked and and validated before a request is submitted.  
+  the number of GB for up limit of data that can be requested each time. This
+  limit should be checked and validated before a request is submitted.
 
   -MO or -Modules, (Alias: -Mods), specifies module names, separated by ',',
   needed to be loaded to run 'dsrqst' as a batch job. The modules will be set
@@ -1431,8 +1430,8 @@ Information options are used to pass information, one or multiple values, into
   For module names with a leading '!' it is treated as an executable command
   and its returned string is used as a dynamically created module name string.
 
-  -MP or -MaxPeriod, it sets the maximum default request period on request
-  interface to avoid of a default large request job. Valid example values
+  -MP or -MaxPeriod, sets the maximum default request period on the request
+  interface to avoid a default large request job. Valid example values
   are 5Y or 10M for periods of 5 Years or 10 Months, respectively.
 
   -MR or -MaxRequest (Alias: -MaximumRequest), max number of outstanding requests
@@ -1448,7 +1447,7 @@ Information options are used to pass information, one or multiple values, into
   'feb', and etc. Check option -ON (-OrderNames) for example of ordering
   files by temporal patterns.
 
-  -OR or -OriginFile, original file name with path se in source file record. This
+  -OR or -OriginFile, original file name with path set in source file record. This
   value is used if the source link is empty.
 
   -OT or -SourceType, original data type, 'M' for data on HPSS.
@@ -1458,20 +1457,20 @@ Information options are used to pass information, one or multiple values, into
 
   -PF or -PartitionFlag, sets partition command call flag for subsetting request,
   N - call customized command, in form of 'CustomizedCommand RequestIndex',
-  to initialize filelist only, no need further cammand calls during partion
-  process or final request build; P - call customized command, in form of 
-  'CustomizedCommand RequestIndex WorkPath PartionIndex', too to process 
-  partition data; F - call customized command , in form of 
-  'CustomizedCommand RequestIndex WorkPath', to built request data finally;
+  to initialize filelist only, no need for further command calls during partition
+  process or final request build; P - call customized command, in form of
+  'CustomizedCommand RequestIndex WorkPath PartitionIndex', too to process
+  partition data; F - call customized command, in form of
+  'CustomizedCommand RequestIndex WorkPath', to build request data finally;
   B - for both P and F.
 
   -PI or -PartitionIndex, automatically generated partition index for a request
   partition record when it is first added.
 
-  -PL or -PartitionLimit, sets number of files for each partition in reuqest
+  -PL or -PartitionLimit, sets number of files for each partition in request
   control configuration via action -SC (-SetControl).
 
-  -PZ or -PartitionSize, sets data size for each partition in reuqest
+  -PZ or -PartitionSize, sets data size for each partition in request
   control configuration via action -SC (-SetControl).
 
   -PO or -Priority, process priorities of the queued requests. Default value
@@ -1523,16 +1522,16 @@ Information options are used to pass information, one or multiple values, into
  
   -SN or -Specialist, set login name of a specialist into RDADB for request
   control records and request records. When the requests are handled, the system
-  login name is validated against the one saved one in RDADB; the request
-  handling processes, both building and purging requests, are blocked if them
-  are not match. 
+  login name is validated against the one saved in RDADB; the request
+  handling processes, both building and purging requests, are blocked if they
+  do not match.
 
   -SQ or -SizeRequest, size of data of all files requested for an individual
   request.
   
   -SZ or -Size, file size each data file online.
 
-  -TA or -TArflag, a field in request control and reuqest record, 'Y' to tar small
+  -TA or -TArflag, a field in request control and request record, 'Y' to tar small
   request files, or 'N' for not.
 
   -TF or -ToFormat (Alias: -OutputFormat|-ProductFormat), string of ':' delimited
