@@ -1,6 +1,6 @@
 ###############################################################################
 #     Title : PgRqst.py
-#    Author : Zaihua Ji,  zjiucar.edu
+#    Author : Zaihua Ji,  zji@ucar.edu
 #      Date : 09/19/2020
 #             2025-02-10 transferred to package rda_python_dsrqst from
 #             https://github.com/NCAR/rda-shared-libraries.git
@@ -20,8 +20,16 @@ from rda_python_common.pg_cmd import PgCMD
 from rda_python_common.pg_opt import PgOPT
 
 class PgRqst(PgOPT, PgCMD, PgSplit):
+   """Common variables and functions for the dsrqst utility.
+
+   Provides request management operations including validation, file handling,
+   format conversion, status tracking, and request control for the RDA data
+   request system. Inherits from PgOPT, PgCMD, and PgSplit for option parsing,
+   command execution, and data splitting capabilities.
+   """
 
    def __init__(self):
+      """Initialize PgRqst with option definitions, table hashes, and default settings."""
       super().__init__()  # initialize parent class
       self.CORDERS = {}
       self.OPTS.update({                         # (!= 0) - setting actions
@@ -302,9 +310,12 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
       self.PGOPT['DTS'] = self.PGOPT['TS'] = 90000  # total size of all downloads, in GB
       self.params['WH'] = self.PGLOG['RQSTHOME']
 
-   # check if enough information entered on command line and/or input file
-   # for given action(s)
    def check_enough_options(self, cact):
+      """Check if enough information entered on command line and/or input file for given action(s).
+
+      Args:
+         cact: The current action code to validate options for.
+      """
       errmsg = [
          "Miss Request Index per -RI(-RequestIndex)",
          "Miss Online File Name per -WF(-WebFile)",
@@ -379,16 +390,24 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
       if 'VP' in self.params: self.PGOPT['VP'] = self.params['VP'][0]
       self.start_none_daemon('dsrqst', cact, self.params['LN'], 1, 10, 1, 1)
 
-   # get the associated dataset id
    def get_dsrqst_dataset(self):
+      """Get the associated dataset ID from parameters or request record."""
       if 'DS' in self.params: return self.params['DS'][0]
       if 'RI' in self.params and self.params['RI'][0]:
          pgrec = self.pgget("dsrqst", "dsid", "rindex = {}".format(self.params['RI'][0]), self.PGOPT['extlog'])
          if pgrec: return pgrec['dsid']
       return None
 
-   # get continue display order of an archived data file of given dataset (and group)
    def get_next_disp_order(self, idx = 0, table = None):
+      """Get the next display order value for an archived data file.
+
+      Args:
+         idx: Index value. If 0, reinitializes cache. If nonzero with no table, initializes entry to 0.
+         table: Database table name to query for max display order.
+
+      Returns:
+         The next sequential display order value, or None if reinitializing.
+      """
       if not idx:
          self.CORDERS = {}  # reinitial lize cached display orders
          return
@@ -402,8 +421,15 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
       self.CORDERS[idx] += 1
       return self.CORDERS[idx]
 
-   # reorder the files for request
    def reorder_request_files(self, onames):
+      """Reorder request files by given order field names.
+
+      Args:
+         onames: String of order field name characters.
+
+      Returns:
+         Number of file records reordered.
+      """
       tname = "wfrqst"
       rcnt = len(self.params['RI'])
       hash = self.TBLHASH[tname]
@@ -433,8 +459,15 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
       self.pglog("{} request file record{} reordered!".format(changed, s), self.PGOPT['wrnlog'])
       return changed
 
-   # reorder the tar files for request
    def reorder_tar_files(self, onames):
+      """Reorder tar files for request by given order field names.
+
+      Args:
+         onames: String of order field name characters.
+
+      Returns:
+         Number of tar file records reordered.
+      """
       tname  = "tfrqst"
       rcnt = len(self.params['RI'])
       hash = self.TBLHASH[tname]
@@ -464,8 +497,15 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
       self.pglog("{} tar file record{} reordered!".format(changed, s), self.PGOPT['wrnlog'])
       return changed
 
-   # reorder the source files
    def reorder_source_files(self, onames):
+      """Reorder source files by given order field names.
+
+      Args:
+         onames: String of order field name characters.
+
+      Returns:
+         Number of source file records reordered.
+      """
       tname = "sfrqst"
       ccnt = len(self.params['CI'])
       hash = self.TBLHASH[tname]
@@ -495,8 +535,8 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
       self.pglog("{} source file record{} reordered!".format(changed, s), self.PGOPT['wrnlog'])
       return changed
 
-   # validate given dataset IDs
    def validate_datasets(self):
+      """Validate given dataset IDs exist in RDADB."""
       if self.OPTS['DS'][2]&8: return  # already validated
       dcnt = len(self.params['DS'])
       for i in range(dcnt):
@@ -507,8 +547,8 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
             self.action_error("Dataset {} is not in RDADB".format(dsid))
       self.OPTS['DS'][2] |= 8  # set validated flag
 
-   # validate given request indices or request IDs
    def validate_requests(self):
+      """Validate given request indices or request IDs exist in RDADB."""
       if (self.OPTS['RI'][2]&8) == 8: return   # already validated
       if 'RI' in self.params:
          rcnt = len(self.params['RI'])
@@ -552,8 +592,8 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
          self.params['RI'] = self.rid2rindex(self.params['RN'])
       self.OPTS['RI'][2] |= 8  # set validated flag
 
-   # validate given request partition indices
    def validate_partitions(self):
+      """Validate given request partition indices exist in RDADB."""
       if (self.OPTS['PI'][2]&8) == 8: return   # already validated
       pcnt = len(self.params['PI']) if 'PI' in self.params else 0
       if not pcnt:
@@ -592,8 +632,8 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
          self.params['PI'] = pgrec['pindex']
       self.OPTS['PI'][2] |= 8   # set validated flag
 
-   # validate given request control indices
    def validate_controls(self):
+      """Validate given request control indices exist in RDADB."""
       if (self.OPTS['CI'][2]&8) == 8: return   # already validated
       ccnt = len(self.params['CI']) if 'CI' in self.params else 0
       if not ccnt:
@@ -636,8 +676,15 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
          self.params['CI'] = pgrec['cindex']
       self.OPTS['CI'][2] |= 8  # set validated flag
 
-   # get request index array from given request IDs
    def rid2rindex(self, rqstids):
+      """Convert request IDs to request index array.
+
+      Args:
+         rqstids: List of request ID strings.
+
+      Returns:
+         List of integer request indices, or None if empty.
+      """
       count = len(rqstids) if rqstids else 0
       if count == 0: return None
       i = 0
@@ -669,8 +716,15 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
          if not pgrec: self.action_error("No Request matches given Request ID condition")
          return pgrec['rindex']
 
-   # get request ID array from given request indices
    def rindex2rid(self, indices):
+      """Convert request indices to request ID array.
+
+      Args:
+         indices: List of integer request indices.
+
+      Returns:
+         List of request ID strings, or None if empty.
+      """
       count = len(indices) if indices else 0
       if count == 0: return None
       i = 0   
@@ -700,8 +754,15 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
          if not pgrec: self.action_error("No Request matches given Index condition")
          return pgrec['rqstid']
 
-   # get dataset ids for given request indices
    def get_request_dsids(self, ridxs):
+      """Get dataset IDs for given request indices.
+
+      Args:
+         ridxs: List of request indices.
+
+      Returns:
+         List of dataset ID strings.
+      """
       count = len(ridxs) if ridxs else 0
       dsids = [None]*count
       for i in range(count):
@@ -712,8 +773,15 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
          dsids[i] = pgrec['dsid']
       return dsids
 
-   # get dataset ids for given request control indices
    def get_control_dsids(self, cidxs):
+      """Get dataset IDs for given request control indices.
+
+      Args:
+         cidxs: List of request control indices.
+
+      Returns:
+         List of dataset ID strings.
+      """
       count = len(cidxs) if cidxs else 0
       dsids = [None]*count
       for i in range(count):
@@ -724,8 +792,17 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
          dsids[i] = pgrec['dsid']
       return dsids
 
-   # get file ids for given file names
    def fname2fid(self, files, dsids, stypes):
+      """Convert file names to file IDs.
+
+      Args:
+         files: List of file name strings.
+         dsids: List of dataset IDs corresponding to each file.
+         stypes: List of source type characters for each file.
+
+      Returns:
+         List of integer file IDs.
+      """
       count = len(files) if files else 0
       fids = [0]*count   
       for i in range(count):
@@ -739,8 +816,17 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
          fids[i] = pgrec['wid']
       return fids
 
-   # get file names from given file ids
    def fid2fname(self, fids, dsids, stypes):
+      """Convert file IDs to file names.
+
+      Args:
+         fids: List of integer file IDs.
+         dsids: List of dataset IDs corresponding to each file.
+         stypes: List of source type characters for each file.
+
+      Returns:
+         List of file name strings.
+      """
       count = len(fids) if fids else 0
       files = ['']*count
       for i in range(count):
@@ -754,11 +840,18 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
          files[i] = pgrec['wfile']
       return files
 
-   # get WEB file path for given dsid and file name
-   # opt = 0 - relative path to self.params['WH']
-   #       1 - absolute path
-   #       2 - relative path to self.params['WH']/data/dsid
    def get_file_path(self, fname, dpath, rtpath, opt = 0):
+      """Get WEB file path for given dataset and file name.
+
+      Args:
+         fname: File name string, or None.
+         dpath: Data path component (e.g., request ID or 'data/dsid').
+         rtpath: Root path override, or None to use self.params['WH'].
+         opt: Path mode - 0: relative to WH, 1: absolute path, 2: relative to WH/data/dsid.
+
+      Returns:
+         Constructed file path string.
+      """
       if not rtpath: rtpath = self.params['WH']
       if fname:
          if re.search(r'^/', fname):
@@ -776,8 +869,12 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
          fname = self.join_paths(rtpath, dpath)
       return fname
 
-   # check and see if enough disk space is allowed for the request
    def request_limit(self):
+      """Check if enough disk space is allowed for the request.
+
+      Returns:
+         0 if OK to process, 1 if total request limit reached.
+      """
    #   pgrec = self.pgget("wfrqst", "round(sum(size)/1000000000, 0) s", "status = 'O'")
    #   if pgrec and pgrec['s'] and pgrec['s'] > self.PGOPT['TS']:
    #      self.pglog("Exceed Total Download Limit self.PGOPT['TS']GB", self.PGOPT['extlog'])
@@ -785,8 +882,18 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
    #   else:
          return 0 # OK to process request
 
-   # return: converted file name and error message
    def convert_archive_format(self, pgfile, pgrqst, cmd, rstr):
+      """Convert file archive format (e.g., compression).
+
+      Args:
+         pgfile: File record dictionary.
+         pgrqst: Request record dictionary.
+         cmd: Conversion command string.
+         rstr: Request identifier string for logging.
+
+      Returns:
+         Tuple of (converted_filename, error_message). error_message is None on success.
+      """
       wfile = pgfile['wfile']
       ofile = pgfile['ofile']
       errmsg = None
@@ -834,8 +941,18 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
             errmsg = "Empty file " + wfile
       return (wfile, errmsg)
 
-   # return: converted file name and error message
    def convert_data_format(self, pgfile, pgrqst, cmd, rstr):
+      """Convert file data format (e.g., GRIB to NetCDF).
+
+      Args:
+         pgfile: File record dictionary.
+         pgrqst: Request record dictionary.
+         cmd: Conversion command string.
+         rstr: Request identifier string for logging.
+
+      Returns:
+         Tuple of (converted_filename, error_message). error_message is None on success.
+      """
       wfile = pgfile['wfile']
       ofile = pgfile['ofile']
       errmsg = None
@@ -883,17 +1000,31 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
             errmsg = "Empty file " + wfile
       return (wfile, errmsg)
 
-   # get file extension for given data format
    def get_format_extension(self, dfmt):
+      """Get file extension for given data format (e.g., 'netcdf' -> '.nc').
+
+      Args:
+         dfmt: Data format string.
+
+      Returns:
+         File extension string with leading dot, or empty string if unknown.
+      """
       DEXTS = {'netcdf' : ".nc", 'nc' : ".nc", 'grib' : ".grb", 'grb' : ".grb", 'hdf' : ".hdf"}
       for dkey in DEXTS:
          if re.search(r'{}'.format(dkey), dfmt, re.I):
             return DEXTS[dkey]
       return ''
 
-   # convert data format for a given file
-   # return '' if sucessful error mesage otherwise
    def do_conversion(self, cmd, file):
+      """Convert data format for a given file.
+
+      Args:
+         cmd: Conversion command string.
+         file: File path to convert.
+
+      Returns:
+         Empty string on success, error message string on failure.
+      """
       msg = ''
       err = "\n"
       self.PGLOG['STD2ERR'] = ["fatal:"]
@@ -908,9 +1039,22 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
          self.pglog(msg, self.PGOPT['errlog'])
       return msg
 
-   # convert data format for given file, keeping the archive format
-   # return 0 if sucessful error mesage otherwise
    def multiple_conversion(self, cmd, ifile, dfmt, afmt, oext, ofile):
+      """Convert data format for given file while preserving archive format.
+
+      Handles untar/uncompress, format conversion, and re-tar/compress.
+
+      Args:
+         cmd: Conversion command string.
+         ifile: Input file path.
+         dfmt: Original data format string.
+         afmt: Archive format string (e.g., 'tar.gz').
+         oext: Output file extension.
+         ofile: Output file path.
+
+      Returns:
+         Empty string on success, error message string on failure.
+      """
       iname = op.basename(ifile)
       wdir = iname + "_tmpdir"
       if op.exists(wdir): self.pgsystem("rm -rf " + wdir, self.PGOPT['extlog'], 5)
@@ -982,10 +1126,17 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
       self.delete_local_file(wdir, self.PGOPT['extlog'])
       return ''  
 
-   # validate the given archive format (afmt) is needed or not
-   # against existing format (format)
-   # return the needed format if diff; otherwise, with the needed format appended 
    def valid_archive_format(self, afmt, format, diff = 0):
+      """Validate archive format against existing format.
+
+      Args:
+         afmt: Archive format to validate.
+         format: Existing archive format string.
+         diff: If 1, return needed format only if different; if 0, return appended format.
+
+      Returns:
+         The needed format string, or None/appended format depending on diff flag.
+      """
       if afmt and format and re.search(r'(^|\.){}(\.|$)'.format(afmt), format, re.I): afmt = None
       if diff: return afmt
       if afmt:
@@ -995,8 +1146,18 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
             format = afmt
       return format
 
-   # format floating point values
    def format_floats(self, recs, info, idx1, idx2):
+      """Format floating point size values into human-readable strings.
+
+      Args:
+         recs: Records dictionary containing 'size' values.
+         info: Info dictionary to store original sizes in 'SIZ' key.
+         idx1: Start index for processing.
+         idx2: End index for processing.
+
+      Returns:
+         Total size across all processed records.
+      """
       vals = recs['size']
       total = 0
       for i in range(idx1, idx2):
@@ -1006,8 +1167,15 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
          vals[i] = self.format_one_float(val)
       return total
 
-   # format a float point value into string
    def format_one_float(self, val):
+      """Format a single float value into human-readable size string (e.g., '1.50G').
+
+      Args:
+         val: Numeric size value in bytes.
+
+      Returns:
+         Formatted string with appropriate unit suffix (B, K, M, G, T, P).
+      """
       units = ('B', 'K', 'M', 'G', 'T', 'P')
       idx = 0
       while val > 1000:
@@ -1019,16 +1187,32 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
       else:
          return "{}{}".format(val, units[idx])
 
-   # format dates
    def format_dates(self, vals, idx1, idx2, fmt = None):
+      """Format date values into specified display format.
+
+      Args:
+         vals: List of date values to format in-place.
+         idx1: Start index for processing.
+         idx2: End index for processing.
+         fmt: Date format string (default 'MM/DD/YYYY').
+      """
       if not fmt: fmt = "MM/DD/YYYY"
       for i in range(idx1, idx2):
          if not vals[i]: continue
          dates = re.split(r'-', str(vals[i]))
          vals[i] = self.fmtdate(int(dates[0]), int(dates[1]), int(dates[2]), fmt)
 
-   # set request file counts and total sizes
    def set_request_count(self, rcnd, pgrqst = None, show = 0):
+      """Set request file counts and total sizes in the database.
+
+      Args:
+         rcnd: SQL condition string for the request.
+         pgrqst: Request record dictionary, or None to query from database.
+         show: If nonzero, log the updated values.
+
+      Returns:
+         The file count for the request.
+      """
       record = {}
       if not pgrqst:
          # get the request count and size information if not given
@@ -1057,9 +1241,19 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
          self.pglog("{} set for Request {}".format(show, rcnd), self.PGOPT['wrnlog']|self.FRCLOG)
       return pgrqst['fcount']   # always return the number of files
 
-   # check file processed or not wait if under processing by another request
-   # return 1 if processed already -1 under processing and 0 not exists
    def check_processed(self, pfile, pgfile, dsid, cridx, rstr):
+      """Check if a file has been processed, waits if under processing by another request.
+
+      Args:
+         pfile: Physical file path to check.
+         pgfile: File record dictionary.
+         dsid: Dataset ID string.
+         cridx: Current request index to exclude from checks.
+         rstr: Request identifier string for logging.
+
+      Returns:
+         1 if processed already, -1 if under processing, 0 if not exists.
+      """
       wfile = pgfile['wfile']
       origin = (0 if wfile == pfile else 1)
       wcnd = "wfile = '{}' AND rindex <> {} AND ".format(wfile, cridx)
@@ -1104,8 +1298,13 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
          self.delete_local_file(pfile)  # clean the dead file
       return 0
 
-   # Fill request metrics into table dssdb.ousage for given request index and purge date
    def fill_request_metrics(self, ridx, pgpurge):
+      """Fill request metrics into table dssdb.ousage for given request index and purge date.
+
+      Args:
+         ridx: Request index.
+         pgpurge: Purge record dictionary containing request metadata.
+      """
       order = "r-{}".format(ridx)
       record = {}
       pgorder = self.pgget("ousage", "date_closed, size_input", "order_number = '{}'".format(order), self.PGOPT['extlog'])
@@ -1137,8 +1336,16 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
       if self.add_to_allusage(record, pgpurge['time_rqst']) and self.pgadd("ousage", record, self.PGOPT['extlog']):
          self.pglog("Request '{}' is recorded into order metrics".format(ridx), self.PGOPT['wrnlog']|self.FRCLOG)
 
-   # add request info into allusage
    def add_to_allusage(self, record, time):
+      """Add request info into the allusage table for usage tracking.
+
+      Args:
+         record: Order record dictionary with request metadata.
+         time: Time string of the request.
+
+      Returns:
+         Result of the yearly allusage insertion, or 0 if user not found.
+      """
       pgrec = self.pgget("wuser",  "email, org_type, country, region",
                           "wuid = {}".format(record['wuid_request']), self.PGOPT['extlog'])
       if not pgrec: return 0
@@ -1154,8 +1361,15 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
       pgrec['source'] = 'O'
       return self.add_yearly_allusage(None, pgrec)
 
-   # get request status
    def request_status(self, rstat):
+      """Convert request status code to human-readable string.
+
+      Args:
+         rstat: Single-character status code (e.g., 'O' for Online, 'Q' for Queue).
+
+      Returns:
+         Human-readable status string.
+      """
       RSTATUS = {
          'E' : "Error",
          'F' : "Offline",
@@ -1172,8 +1386,21 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
       if rstat not in RSTATUS: rstat = 'U'
       return RSTATUS[rstat]
 
-   # cache request control information
    def cache_request_control(self, ridx, pgrqst, action, pidx = 0):
+      """Cache request control information for a request.
+
+      Looks up and caches the request control record (rcrqst) into self.PGOPT['RCNTL'],
+      building the command string with request-specific parameters.
+
+      Args:
+         ridx: Request index.
+         pgrqst: Request record dictionary.
+         action: Current action code string (e.g., 'BR', 'SP', 'PP').
+         pidx: Partition index, if applicable (default 0).
+
+      Returns:
+         self.SUCCESS if control record found or created, None if system is down.
+      """
       if not pgrqst['rqstid']: pgrqst['rqstid'] = self.add_request_id(ridx, pgrqst['email'], 1)
       if self.check_host_down(self.PGLOG['RQSTHOME'], self.PGLOG['HOSTNAME'], self.PGOPT['errlog']):
          return None   # check if system down
@@ -1222,21 +1449,45 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
       self.PGOPT['RCNTL'] = pgrec
       return self.SUCCESS
 
-   # get golally defined table row color
    def table_color(self, idx):
+      """Get globally defined table row color by index.
+
+      Args:
+         idx: Color index (0-4).
+
+      Returns:
+         HTML color string.
+      """
       tcolors = ("#CDBCDC", "#DFD8F8", "#EAEAFC", "#F8F6FE", "#E0C8B1")
       return tcolors[idx]
 
-   # add a unique request id
    def add_request_id(self, ridx, email, updtdb = 0):
+      """Generate a unique request ID from user last name and request index.
+
+      Args:
+         ridx: Request index.
+         email: User email address.
+         updtdb: If nonzero, update the database with the new request ID.
+
+      Returns:
+         Generated request ID string (e.g., 'SMITH123').
+      """
       unames = self.get_ruser_names(email)
       lname = self.convert_chars(unames['lstname'], 'RQST')
       rqstid = "{}{}".format(lname.upper(), ridx)
-      if updtdb: self.pgexec("UPDATE dsrqst SET rqstid = '{}'".format(rqstid), self.PGOPT['extlog'])
+      if updtdb: self.pgexec("UPDATE dsrqst SET rqstid = '{}' WHERE rindex = {}".format(rqstid, ridx), self.PGOPT['extlog'])
       return rqstid
 
-   # expand request status info
    def get_request_status(self, pgrecs, cnt = 0):
+      """Expand request status codes into detailed status strings with progress info.
+
+      Args:
+         pgrecs: Multiple records dictionary with request data.
+         cnt: Number of records to process (default 0 means all).
+
+      Returns:
+         List of expanded status strings.
+      """
       if not cnt: cnt = (len(pgrecs['rindex']) if pgrecs else 0)
       rstats = pgrecs['status']
       for i in range(cnt):
@@ -1272,8 +1523,16 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
             rstats[i] += " - " + self.request_status(rstats[i])
       return rstats   
 
-   # get percentage of completion of request process
    def complete_request_percentage(self, rqst, ckrec):
+      """Get percentage of completion of request process.
+
+      Args:
+         rqst: Request record dictionary.
+         ckrec: Dscheck record dictionary, or None.
+
+      Returns:
+         Percentage (0-99) of completion, or -1 if pending.
+      """
       if ckrec and not ckrec['stttime']: return -1
       percent = 0
       cnd = "rindex = {} AND status = 'O'".format(rqst['rindex'])
@@ -1295,8 +1554,16 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
             if percent > 99: percent = 99
       return percent
 
-   # expand request partition status info
    def get_partition_status(self, pgrecs, cnt = 0):
+      """Expand request partition status codes into detailed status strings.
+
+      Args:
+         pgrecs: Multiple records dictionary with partition data.
+         cnt: Number of records to process (default 0 means all).
+
+      Returns:
+         List of expanded partition status strings.
+      """
       if not cnt: cnt = (len(pgrecs['rindex']) if pgrecs else 0)
       rstats = [None]*cnt
       for i in range(cnt):
@@ -1329,8 +1596,16 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
             rstats[i] += " - " + self.request_status(rstats[i])
       return rstats   
 
-   # get percentage of completion of a partition process
    def complete_partition_percentage(self, part, ckrec):
+      """Get percentage of completion of a partition process.
+
+      Args:
+         part: Partition record dictionary.
+         ckrec: Dscheck record dictionary, or None.
+
+      Returns:
+         Percentage (0-99) of completion, or -1 if pending.
+      """
       if ckrec and not ckrec['stttime']: return -1
       percent = 0
       if part['fcount'] > 0:
@@ -1342,8 +1617,16 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
                percent = 99
       return percent
 
-   # get md5 chechsum for requested file from source file record
    def get_requested_checksum(self, dsid, pgfile):
+      """Get MD5 checksum for requested file from source file record.
+
+      Args:
+         dsid: Dataset ID string.
+         pgfile: File record dictionary with srcid, ofile, wfile, and size.
+
+      Returns:
+         Checksum string if available and sizes match, or None.
+      """
       if pgfile['srcid'] and pgfile['ofile'] and pgfile['wfile'] == pgfile['ofile']:
          pgsrc = self.pgget_wfile(dsid, "data_size, checksum", "wid = {}".format(pgfile['srcid']), self.LGEREX)
          if pgsrc and pgsrc['checksum'] and pgsrc['data_size'] == pgfile['size']:

@@ -15,6 +15,13 @@ from email.message import EmailMessage
 from .pg_rqst import PgRqst
 
 class PgRDARqst(PgRqst):
+   """RDA request submission library for submitting and managing data requests.
+
+   Extends PgRqst with methods for submitting subset/temporal requests,
+   checking request status, sending email notifications, and managing
+   request control records. Supports both command-line and web request
+   submission workflows.
+   """
 
    USG = (
       "\n\nUsage for function rda_request(rqst, logact)\n\n" +
@@ -60,7 +67,7 @@ class PgRDARqst(PgRqst):
       "  'fcount'       : Number of Files requested\n" +
       "  'ptlimit'      : file count limit for each partition\n" +
       "  'ptsize'       : data size limit for each partition\n" +
-      "  'date_rqst'    : Date request submiited\n" +
+      "  'date_rqst'    : Date request submitted\n" +
       "  'time_rqst'    : Time request submitted\n" +
       "  'date_ready'   : Date request built\n" +
       "  'time_ready'   : Time request built\n" +
@@ -80,13 +87,22 @@ class PgRDARqst(PgRqst):
       "\n")
 
    def __init__(self):
+      """Initialize PgRDARqst with validation command and partition settings."""
       super().__init__()  # initialize parent class
       self.VLDCMD = None
       self.PTLIMIT = self.PTSIZE = 0
 
-   # Function rda_request(rqst - a dictionary array for request information)
-   # add a RDA subset request; Pass in nothing to get help message
    def rda_request(self, rqst = None, logact = None):
+      """Submit an RDA data request.
+
+      Args:
+         rqst: Dictionary with request information (rtype, dsid, email, rinfo, etc.).
+               Pass None to display usage help.
+         logact: Logging action flag, defaults to LOGWRN.
+
+      Returns:
+         String message or dictionary with request submission result.
+      """
       if logact is None: logact = self.LOGWRN
       if not rqst:
          self.pglog(self.USG, self.WARNLG)
@@ -104,14 +120,23 @@ class PgRDARqst(PgRqst):
       self.send_request_email(pgrqst, msg, logact)
       response_msg = self.return_request_message(pgrqst, 1, logact)
       # request submitted, return success message
-      if type(response_msg) == str:
+      if isinstance(response_msg, str):
          return response_msg + msg
       else:
          response_msg['summary'] = msg
          return response_msg
 
-   # fill up the common request info
    def common_request_info(self, pgrqst, rqst, logact):
+      """Fill in common request information fields from the request dictionary.
+
+      Args:
+         pgrqst: Request record dictionary to populate.
+         rqst: Input request dictionary with user-provided values.
+         logact: Logging action flag.
+
+      Returns:
+         Error message string on failure, None on success.
+      """
       wdir = rtype = dsid = email = None
       self.PTLIMIT = self.PTSIZE = 0
       gindex = 0
@@ -188,8 +213,18 @@ class PgRDARqst(PgRqst):
       if 'file_format' in pgrqst: pgrqst['file_format'] = pgrqst['file_format'].upper()
       return None
 
-   # check if allow request for the user
    def allow_request(self, rtype, unames, pgctl, fromflag = None):
+      """Check if the user is allowed to submit another request based on maxrqst limit.
+
+      Args:
+         rtype: Request type character.
+         unames: User name record dictionary.
+         pgctl: Request control record.
+         fromflag: Request origin flag ('W' for web, 'C' for command line).
+
+      Returns:
+         Error message/dictionary if denied, None if allowed.
+      """
       cnt = self.pgget("dsrqst", "", "cindex = {} AND email = '{}' AND status <> 'P'".format(pgctl['cindex'], unames['email']))
       if cnt < pgctl['maxrqst']:
          return None
@@ -212,8 +247,19 @@ class PgRDARqst(PgRqst):
             return ("{}: Your {} request is denied since you have {} outstanding ".format(unames['name'], rstr, cnt) +
                  "requests already for this Dataset{}. Please try again later after your other requests have completed processing.".format(gstr))
 
-   # check if a request temporal period is not exceeding the limit
    def valid_request_period(self, rtype, unames, pgctl, rinfo, fromflag = None):
+      """Validate that the request temporal period does not exceed the maximum allowed.
+
+      Args:
+         rtype: Request type character.
+         unames: User name record dictionary.
+         pgctl: Request control record with maxperiod setting.
+         rinfo: Request info string containing date range.
+         fromflag: Request origin flag ('W' for web, 'C' for command line).
+
+      Returns:
+         Error message/dictionary if period exceeded, None if valid.
+      """
       dates = None
       ms = re.search(r'dates=(\d+-\d+-\d+)( | \d+:\d+ )(\d+-\d+-\d+)', rinfo)
       if ms:
@@ -264,8 +310,17 @@ class PgRDARqst(PgRqst):
               "{} - {}, is longer than {} for ".format(dates[0], dates[1], pstr) +
               "this Dataset{}. Please choose a shorter data period.".format(gstr))
 
-   # process and fill up the detail request info based on the request type
    def process_request_detail(self, pgrqst, rqst, logact):
+      """Process and fill in detail request info based on the request type.
+
+      Args:
+         pgrqst: Request record dictionary to populate.
+         rqst: Input request dictionary with user-provided values.
+         logact: Logging action flag.
+
+      Returns:
+         Error message string on failure, None on success.
+      """
       rtype = pgrqst['rqsttype']
       if rtype == "S" or rtype == "T":
          if 'rinfo' in rqst and rqst['rinfo']:
@@ -290,13 +345,30 @@ class PgRDARqst(PgRqst):
       pgrqst['ptcount'] = self.initialize_ptcount(pgrqst)
       return None
 
-   # validate the request info if validating command if provided
    def valid_request_info(self, dsid, rinfo, logact):
+      """Validate request info by running the validation command if one is configured.
+
+      Args:
+         dsid: Dataset ID string.
+         rinfo: Request info string to validate.
+         logact: Logging action flag.
+
+      Returns:
+         Error message from validation command, or None if valid.
+      """
       self.pgsystem("echo {} | {} {}".format(rinfo, self.VLDCMD, dsid), logact, 262+1024)
       return self.PGLOG['SYSERR']
 
-   # add one request record
    def add_request_record(self, pgrqst, logact):
+      """Add a new request record to the dsrqst table.
+
+      Args:
+         pgrqst: Request record dictionary to insert.
+         logact: Logging action flag.
+
+      Returns:
+         Error message string on failure, None on success.
+      """
       unames = self.get_ruser_names(pgrqst['email'], 1)
       nidx = self.new_request_id(logact)
       lname = self.convert_chars(unames.get('lstname', None), 'RQST').upper()
@@ -313,24 +385,38 @@ class PgRDARqst(PgRqst):
       else:
          return self.pglog("Fail to add request record for '{}'".format(pgrqst['dsid']), logact|self.RETMSG)
 
-   # find a unique request name/ID from given user last name
-   # by appending (existing maximum rindex + 1) 
    def new_request_id(self, logact):
+      """Find a unique request ID by getting the next available rindex value.
+
+      Args:
+         logact: Logging action flag.
+
+      Returns:
+         Next available request index (max rindex + 1), or 0 if no records.
+      """
       pgrec = self.pgget("dsrqst", "MAX(rindex) maxid", '', logact)
       if pgrec:
          return (pgrec['maxid'] + 1)
       else:
          return 0
 
-   # check if the same request was submitted already
    def subset_request_submitted(self, rqst, logact):
+      """Check if an identical subset request was already submitted.
+
+      Args:
+         rqst: Request record dictionary with dsid, gindex, rqsttype, email, rinfo.
+         logact: Logging action flag.
+
+      Returns:
+         Message string or dictionary if duplicate found, None otherwise.
+      """
       pgrqst = self.pgget("dsrqst", "*", "dsid = '{}' AND gindex = {} ".format(rqst['dsid'], rqst['gindex']) +
                            "AND rqsttype = '{}' AND email = '{}' ".format(rqst['rqsttype'], rqst['email']) +
                            "AND rinfo = '{}'".format(rqst['rinfo']), logact|self.EXITLG)
       if not pgrqst: return None
       msg = self.build_request_message(pgrqst, logact)
       response_msg = self.return_request_message(pgrqst, 0, logact)
-      if type(response_msg) == dict:
+      if isinstance(response_msg, dict):
          response_msg['summary'] = msg
          response_msg['data'].update({
             'date_purge': pgrqst['date_purge']
@@ -339,8 +425,16 @@ class PgRDARqst(PgRqst):
       else:
          return response_msg + msg
 
-   # build a string message for a submitted request
    def build_request_message(self, rqst, logact):
+      """Build a summary string message for a submitted request.
+
+      Args:
+         rqst: Request record dictionary.
+         logact: Logging action flag.
+
+      Returns:
+         Formatted request summary string.
+      """
       ridx = rqst['rindex']
       dsid = rqst['dsid']
       rstr = self.request_type(rqst['rqsttype'])
@@ -369,8 +463,14 @@ class PgRDARqst(PgRqst):
          buf += "\nTotal {} file{} ({}) requested.\n".format(rqst['fcount'], s, self.format_float_value(rqst['size_input']))
       return buf
 
-   # email request info to specialist
    def send_request_email(self, rqst, msg, logact):
+      """Email request information to the specialist and optional CC recipients.
+
+      Args:
+         rqst: Request record dictionary.
+         msg: Request summary message string.
+         logact: Logging action flag.
+      """
       pgctl = self.get_rqst_control(rqst['dsid'], rqst['gindex'], rqst['rqsttype'], logact)
       if not pgctl or pgctl.get('ccemail', None) == 'N': return
       ridx = rqst['rindex']
@@ -434,9 +534,19 @@ class PgRDARqst(PgRqst):
             smtp.quit()
       return
    def get_rqst_control(self, dsid, gindex, rtype, logact):
-      """ 
-      Get the request control record for a request
-      return None if no control record found
+      """Get the request control record for a request.
+
+      Searches for matching control record by dataset, group, and request type,
+      traversing parent groups if no match found at the current level.
+
+      Args:
+         dsid: Dataset ID string.
+         gindex: Group index (0 if no group).
+         rtype: Request type character.
+         logact: Logging action flag.
+
+      Returns:
+         Control record dictionary, or None if not found.
       """
       gcnd = f"dsid = '{dsid}' AND gindex = {gindex}"
       if rtype == "T" or rtype == "S":
@@ -468,8 +578,17 @@ class PgRDARqst(PgRqst):
             return None
          break
       return pgctl
-   # create and return the request message back to caller
    def return_request_message(self, rqst, success, logact):
+      """Create and return the response message for a request submission.
+
+      Args:
+         rqst: Request record dictionary.
+         success: 1 if request was submitted successfully, 0 if duplicate.
+         logact: Logging action flag.
+
+      Returns:
+         String message for command-line callers, or dictionary for web callers.
+      """
       ridx = rqst['rindex']
       dsid = rqst['dsid']
       rstr = self.request_type(rqst['rqsttype'])
@@ -488,7 +607,7 @@ class PgRDARqst(PgRqst):
                  "online at\n{}/dashboard/\n".format(self.PGLOG['DSSURL']) +
                  "under the 'Customized Data Requests' section.")
       else:
-         msg += ("DECLINED since you have summitted\na duplicate request as " +
+         msg += ("DECLINED since you have submitted\na duplicate request as " +
                  "in the summary shown below.\n")
          if rqst['status'] == "O":
             msg += ("\nYour previous Request {} is available under\n" +
@@ -516,9 +635,17 @@ class PgRDARqst(PgRqst):
          # return a string message if from command line or other
          return msg
 
-   # Function rda_request_status(ridx  - Request Index)
-   # expand request status info; Run self.rda_request() to get help message.
    def rda_request_status(self, ridx = 0, email = None, logact = None):
+      """Get expanded request status information by request index or email.
+
+      Args:
+         ridx: Request index (integer or string with request ID).
+         email: User email address to look up requests.
+         logact: Logging action flag, defaults to ERRLOG.
+
+      Returns:
+         Tuple of (count, records_dictionary) with request status information.
+      """
       if logact is None: logact = self.ERRLOG
       if ridx and not isinstance(ridx, int):
          ms = re.match(r'^\D+(\d+)$', ridx)
@@ -544,9 +671,15 @@ class PgRDARqst(PgRqst):
          cnt = 0
       return (cnt, pgrecs)
 
-   # initilize partition count
-   # return 0 for setting partition dynamically later; 1 not further partitioning
    def initialize_ptcount(self, pgrqst):
+      """Initialize partition count based on file count and size limits.
+
+      Args:
+         pgrqst: Request record dictionary.
+
+      Returns:
+         0 if partitioning will be set dynamically later, 1 if no further partitioning needed.
+      """
       if self.PTLIMIT:
          fcount = 0
          if 'fcount' in pgrqst and pgrqst['fcount']: fcount = pgrqst['fcount']
