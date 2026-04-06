@@ -880,7 +880,7 @@ class PgRqst(PgOPT, PgCMD, PgSplit):
    #      self.pglog("Exceed Total Download Limit self.PGOPT['TS']GB", self.PGOPT['extlog'])
    #      return 1 # reach total request limit
    #   else:
-         return 0 # OK to process request
+      return 0 # OK to process request
 
    def convert_archive_format(self, pgfile, pgrqst, cmd, rstr):
       """Convert file archive format (e.g., compression).
