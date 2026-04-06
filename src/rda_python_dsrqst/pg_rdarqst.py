@@ -525,14 +525,12 @@ class PgRDARqst(PgRqst):
          logmsg += f", CC: {ccemail}"
       email_msg.set_content(header + msg)
       logmsg += f", Subject: {subject}\n"
-      with smtplib.SMTP(self.PGLOG['EMLSRVR'], self.PGLOG['EMLPORT']) as smtp:
-         try:
+      try:
+         with smtplib.SMTP(self.PGLOG['EMLSRVR'], self.PGLOG['EMLPORT']) as smtp:
             smtp.send_message(email_msg)
-         except Exception as e:
-            return self.pglog(f"Failed to send email to {receiver} for request {ridx}:\n{e}\n{logmsg}", (logact|self.ERRLOG)&~self.EXITLG)
-         finally:
-            smtp.quit()
-      return
+      except Exception as e:
+         self.pglog(f"Failed to send email to {receiver} for request {ridx}:\n{e}\n{logmsg}", (logact|self.ERRLOG)&~self.EXITLG)
+
    def get_rqst_control(self, dsid, gindex, rtype, logact):
       """Get the request control record for a request.
 
@@ -578,6 +576,7 @@ class PgRDARqst(PgRqst):
             return None
          break
       return pgctl
+
    def return_request_message(self, rqst, success, logact):
       """Create and return the response message for a request submission.
 
