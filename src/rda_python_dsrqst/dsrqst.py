@@ -2845,7 +2845,7 @@ class DsRqst(PgRqst):
       pcnt = 0
       for i in range(self.ALLCNT):
          pcnt += self.restore_one_request(self.params['RI'][i])
-      self.pglog("{} of {} request{} retored at {}".format(pcnt, self.ALLCNT, s, self.curtime(1)), self.PGOPT['wrnlog'])
+      self.pglog("{} of {} request{} restored at {}".format(pcnt, self.ALLCNT, s, self.curtime(1)), self.PGOPT['wrnlog'])
 
    def restore_one_request(self, ridx):
       """Restore a single purged request by copying its record from dspurge back to dsrqst.
