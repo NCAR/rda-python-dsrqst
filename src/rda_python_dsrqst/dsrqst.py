@@ -18,8 +18,15 @@ from os import path as op
 from .pg_rqst import PgRqst
 
 class DsRqst(PgRqst):
+   """Utility program to stage data files online temporarily for public users to download.
+
+   Handles subset requests, data format conversion, request building, partitioning,
+   purging, and other request lifecycle operations. Provides the command-line interface
+   for the dsrqst utility.
+   """
 
    def __init__(self):
+      """Initialize DsRqst with global counting variables and size thresholds."""
       super().__init__()  # initialize parent class
       self.ALLCNT = 0   # global counting variables
       self.ERRMSG = ''
@@ -30,13 +37,13 @@ class DsRqst(PgRqst):
       self.CMPCNT = 0   # compression partition count after command call
       self.EMLMAX = 5   # limit file error numbers for email
 
-   # read in parameters
    def read_parameters(self):
+      """Read in and validate command-line parameters."""
       self.parsing_input('dsrqst')
       self.check_enough_options(self.PGOPT['CACT'])
 
-   # start actions of dsrqst
    def start_actions(self):
+      """Dispatch and execute the requested action based on PGOPT['CACT']."""
       if self.PGOPT['CACT'] == 'CR':
          self.ALLCNT = len(self.params['RI'])
          self.clean_request_info()
@@ -137,8 +144,8 @@ class DsRqst(PgRqst):
             self.record_dscheck_status("D")
       if self.OPTS[self.PGOPT['CACT']][2]: self.cmdlog()   # log end time if not getting action
 
-   # clean requests for given request indices
    def clean_request_info(self):
+      """Clean requests for given request indices, resetting directories and file records."""
       s = 's' if self.ALLCNT > 1 else ''
       self.pglog("clean {} request{} ...".format(self.ALLCNT, s), self.WARNLG)
       self.check_local_writable(self.params['WH'], "Clean Request", self.PGOPT['extlog'])
@@ -189,8 +196,17 @@ class DsRqst(PgRqst):
             self.clean_request_usage(ridx, rcnd)
             self.pglog("{} Request {} is cleaned".format(self.request_type(pgrec['rqsttype']), ridx), self.LOGWRN)
 
-   # clean request partitions for given request index
    def clean_partition_info(self, ridx, cnd, pgrqst):
+      """Clean request partitions for given request index.
+
+      Args:
+         ridx: Request index.
+         cnd: SQL condition string for the request.
+         pgrqst: Request record dictionary.
+
+      Returns:
+         1 on success, or error log result on failure.
+      """
       pgrecs = self.pgmget("ptrqst", "pindex", cnd, self.PGOPT['extlog'])
       pcnt = len(pgrecs['pindex']) if pgrecs else 0
       if pcnt > 0:
@@ -206,8 +222,17 @@ class DsRqst(PgRqst):
             self.pgexec("UPDATE dsrqst SET pid = 0 WHERE " + cnd, self.PGOPT['extlog'])
       return 1
 
-   # delete one request for given request indix
    def delete_one_request(self, ridx, dcnt, cleanusage = 0):
+      """Delete one request for given request index.
+
+      Args:
+         ridx: Request index.
+         dcnt: List of 3 counters [db_records, db_deleted, disk_deleted].
+         cleanusage: If nonzero, also clean usage records.
+
+      Returns:
+         1 if request deleted, 0 on failure.
+      """
       cnd = "rindex = {}".format(ridx)
       pgrqst = self.pgget("dsrqst", "*", cnd, self.PGOPT['extlog'])
       if not pgrqst: self.action_error("Error get Request Record for " + cnd)
@@ -260,8 +285,8 @@ class DsRqst(PgRqst):
       else:
          return 0
 
-   # delete requests for given request indices
    def delete_request_info(self):
+      """Delete requests for given request indices."""
       s = 's' if self.ALLCNT > 1 else ''
       self.pglog("Delete {} request{} ...".format(self.ALLCNT, s), self.WARNLG)
       self.check_local_writable(self.params['WH'], "Delete Request", self.PGOPT['extlog'])
@@ -277,8 +302,8 @@ class DsRqst(PgRqst):
          s = 's' if dcnt[0] > 1 else ''
          self.pglog("{}/{} of {} request file{} deleted from RDADB/Disk".format(dcnt[1], dcnt[2], dcnt[0], s), self.PGOPT['wrnlog'])
 
-   # delete request controls for given request control indices
    def delete_request_control(self):
+      """Delete request controls for given request control indices."""
       s = 's' if self.ALLCNT > 1 else ''
       self.pglog("Delete {} request control{} ...".format(self.ALLCNT, s), self.WARNLG)
       delcnt = 0
@@ -287,8 +312,8 @@ class DsRqst(PgRqst):
          delcnt += self.pgdel("rcrqst", cnd, self.PGOPT['extlog'])
       self.pglog("{} of {} request control{} deleted".format(delcnt, self.ALLCNT, s), self.PGOPT['wrnlog'])
 
-   # delete online files for given request indices
    def delete_web_files(self):
+      """Delete online files for given request indices."""
       s = 's' if self.ALLCNT > 1 else ''
       self.pglog("Delete {} request file{} ...".format(self.ALLCNT, s), self.WARNLG)
       self.validate_multiple_options(self.ALLCNT, ["RI"])
@@ -310,14 +335,15 @@ class DsRqst(PgRqst):
             self.lock_request(ridx, 0, self.PGOPT['extlog'])   # unlock requests
       self.pglog("{}/{} of {} request file{} deleted from RDADB/Disk".format(dcnt[1], dcnt[2], self.ALLCNT, s), self.PGOPT['wrnlog'])
 
-   # delete including source files for given request control indices
    def delete_source_files(self):
+      """Delete source files for given request control indices."""
       s = 's' if self.ALLCNT > 1 else ''
       self.pglog("Delete {} including source file{} ...".format(self.ALLCNT, s), self.WARNLG)
       self.validate_multiple_options(self.ALLCNT, ["CI"])
       cidx = dcnt = 0
       for i in range(self.ALLCNT):
          if cidx != self.params['CI'][i]:
+            cidx = self.params['CI'][i]
             cnd = "cindex = {}".format(cidx)
             pgrec = self.pgget("rcrqst", "*", cnd, self.PGOPT['extlog'])
             if not pgrec:
@@ -325,8 +351,17 @@ class DsRqst(PgRqst):
          dcnt += self.pgdel("sfrqst", "{} AND wfile = '{}'".format(cnd, self.params['WF'][i]), self.PGOPT['extlog'])
       self.pglog("{} of {} source file{} deleted from RDADB".format(dcnt, self.ALLCNT, s), self.PGOPT['wrnlog'])
 
-   # Remove file record in RDADB and delete file physically on disk if needed
    def delete_one_file(self, pgrqst, wfile, ofile, dpath, shared, cnts):
+      """Remove file record from RDADB and delete file physically on disk if needed.
+
+      Args:
+         pgrqst: Request record dictionary.
+         wfile: Web file name to delete.
+         ofile: Original file name, or None.
+         dpath: Data path for the file.
+         shared: Whether the file is shared across requests.
+         cnts: List of 3 counters [total, db_deleted, disk_deleted].
+      """
       ridx = pgrqst['rindex']
       cnd = "rindex = {}".format(ridx)
       cnts[0] += 1
@@ -360,8 +395,8 @@ class DsRqst(PgRqst):
                   self.pglog(ofile + ": deleted", self.PGOPT['wrnlog'])
                   cnts[2] += 1
 
-   # get request information
    def get_request_info(self):
+      """Get and display request information from RDADB."""
       tname = "dsrqst"
       hash = self.TBLHASH[tname]
       self.pglog("Get request information from RDADB ...", self.WARNLG)
@@ -391,8 +426,8 @@ class DsRqst(PgRqst):
       else:
          self.pglog("No request information retrieved", self.PGOPT['wrnlog'])
 
-   # get request control information
    def get_request_control(self):
+      """Get and display request control information from RDADB."""
       tname = "rcrqst"
       hash = self.TBLHASH[tname]
       self.pglog("Get request control information from RDADB ...", self.WARNLG)
@@ -417,8 +452,8 @@ class DsRqst(PgRqst):
       else:
          self.pglog("No request control information retrieved", self.PGOPT['wrnlog'])
 
-   # get request partition information
    def get_request_partitions(self):
+      """Get and display request partition information from RDADB."""
       tname = "ptrqst"
       hash = self.TBLHASH[tname]
       self.pglog("Get request partition information from RDADB ...", self.WARNLG)
@@ -447,8 +482,8 @@ class DsRqst(PgRqst):
       else:
          self.pglog("No request partition information retrieved", self.PGOPT['wrnlog'])
 
-   # get online file information
    def get_web_files(self):
+      """Get and display online file information from RDADB."""
       tables = "wfrqst INNER JOIN dsrqst ON wfrqst.rindex = dsrqst.rindex"
       tname = 'wfrqst'
       hash = self.TBLHASH[tname]
@@ -486,8 +521,8 @@ class DsRqst(PgRqst):
       else:
          self.pglog("no request file record retrieved", self.PGOPT['wrnlog'])
 
-   # get online file information
    def get_tar_files(self):
+      """Get and display tar file information from RDADB."""
       tables = "tfrqst INNER JOIN dsrqst ON tfrqst.rindex = dsrqst.rindex"
       tname = "tfrqst"
       hash = self.TBLHASH[tname]
@@ -520,8 +555,8 @@ class DsRqst(PgRqst):
       else:
          self.pglog("no tar file record retrieved", self.PGOPT['wrnlog'])
 
-   # add or modify request information
    def set_request_info(self):
+      """Add or modify request information in RDADB."""
       tname = "dsrqst"
       hash = self.TBLHASH[tname]
       s = 's' if self.ALLCNT > 1 else ''
@@ -627,17 +662,20 @@ class DsRqst(PgRqst):
             self.lock_request(ridx, 0, self.PGOPT['extlog'])
       self.pglog("{}/{} of {} request{} added/modified in RDADB!".format(addcnt, modcnt, self.ALLCNT, s), self.PGOPT['wrnlog'])
 
-   # find a unique request name/ID from given user break name
-   # by appending (existing maximum rindex + 1) 
    def new_request_id(self):
+      """Find a unique request ID by returning (existing maximum rindex + 1).
+
+      Returns:
+         Next available request index integer, or 0 if no requests exist.
+      """
       pgrec = self.pgget("dsrqst", "MAX(rindex) maxid", '', self.LOGERR)
       if pgrec:
          return (pgrec['maxid'] + 1)
       else:
          return 0
 
-   # modify request partition information
    def set_request_partitions(self):
+      """Modify request partition information in RDADB."""
       tname = "ptrqst"
       hash = self.TBLHASH[tname]
       s = 's' if self.ALLCNT > 1 else ''
@@ -673,8 +711,8 @@ class DsRqst(PgRqst):
             if 'status' in record: self.pglog("RQST{}: SET Request Status E to Q".format(ridx), self.PGOPT['wrnlog'])
       self.pglog("{} of {} request partition{} modified in RDADB!".format(modcnt, self.ALLCNT, s), self.PGOPT['wrnlog'])
 
-   # add or modify request control information
    def set_request_control(self):
+      """Add or modify request control information in RDADB."""
       tname = "rcrqst"
       hash = self.TBLHASH[tname]
       s = 's' if self.ALLCNT > 1 else ''
@@ -730,8 +768,12 @@ class DsRqst(PgRqst):
                   if pcnts[dsid][rtype] == 1: dsids[dsid] = 1
       self.pglog("{}/{} of {} request control{} added/modified in RDADB!".format(addcnt, modcnt, self.ALLCNT, s), self.PGOPT['wrnlog'])
 
-   # add or modify information for tar files of requested online web files
    def set_tar_files(self, rindex):
+      """Add or modify information for tar files of requested online web files.
+
+      Args:
+         rindex: Request index, or 0 to use indices from params.
+      """
       tname = "tfrqst"
       hash = self.TBLHASH[tname]
       s = 's' if self.ALLCNT > 1 else ''
@@ -763,8 +805,12 @@ class DsRqst(PgRqst):
             self.lock_request(ridx, 0, self.PGOPT['extlog'])   # unlock requests
       self.pglog("{} of {} tar file{} modified in RDADB!".format(modcnt, self.ALLCNT, s), self.PGOPT['wrnlog'])
 
-   # add or modify requested online web file information
    def set_web_files(self, rindex = 0):
+      """Add or modify requested online web file information.
+
+      Args:
+         rindex: Request index, or 0 to use indices from params.
+      """
       tname = "wfrqst"
       stypes = 'CMW'
       hash = self.TBLHASH[tname]
@@ -800,8 +846,8 @@ class DsRqst(PgRqst):
             self.lock_request(ridx, 0, self.PGOPT['extlog'])   # unlock requests
       self.pglog("{}/{} of {} request file{} added/modified in RDADB!".format(addcnt, modcnt, self.ALLCNT, s), self.PGOPT['wrnlog'])
 
-   # unlock requests for given request indices
    def unlock_request_info(self):
+      """Unlock requests for given request indices."""
       s = 's' if self.ALLCNT > 1 else ''
       self.pglog("Unlock {} request{} ...".format(self.ALLCNT, s), self.WARNLG)
       modcnt = 0
@@ -815,17 +861,17 @@ class DsRqst(PgRqst):
             self.pglog("Request {}: Partition of the request are under processing".format(ridx), self.PGOPT['wrnlog'])
          elif self.lock_request(ridx, 0, self.PGOPT['extlog']) > 0:
             modcnt += 1
-            self.pglog("Request ridx: Unlocked {}/{}".format(ridx, pgrec['pid'], pgrec['lockhost']), self.PGOPT['wrnlog'])
+            self.pglog("Request {}: Unlocked {}/{}".format(ridx, pgrec['pid'], pgrec['lockhost']), self.PGOPT['wrnlog'])
          elif (self.check_host_down(None, pgrec['lockhost']) and
                self.lock_request(ridx, -2, self.PGOPT['extlog']) > 0):
             modcnt += 1
             self.pglog("Request {}: Force unlocked {}/{}".format(ridx, pgrec['pid'], pgrec['lockhost']), self.PGOPT['wrnlog'])
          else:
             self.pglog("Request {}: Unable to unlock {}/{}".format(ridx, pgrec['pid'], pgrec['lockhost']), self.PGOPT['wrnlog'])
-      if self.ALLCNT > 1: self.pglog("{} of {} request{} unlocked from RDADB".format(modcnt, self.ALLCNT), self.LOGWRN) 
+      if self.ALLCNT > 1: self.pglog("{} of {} request{} unlocked from RDADB".format(modcnt, self.ALLCNT, s), self.LOGWRN)
 
-   # unlock request partitions for given partition indices
    def unlock_partition_info(self):
+      """Unlock request partitions for given partition indices."""
       s = 's' if self.ALLCNT > 1 else ''
       self.pglog("Unlock {} request partition{} ...".format(self.ALLCNT, s), self.WARNLG)
       modcnt = 0
@@ -846,8 +892,8 @@ class DsRqst(PgRqst):
             self.pglog("Request Paritition {}: Unable to unlock {}/{}".format(pidx, pgrec['pid'], pgrec['lockhost']), self.PGOPT['wrnlog'])
       if self.ALLCNT > 1: self.pglog("{} of {} request partition{} unlocked from RDADB".format(modcnt, self.ALLCNT, s), self.LOGWRN) 
 
-   # interrupt requests for given request indices
    def interrupt_requests(self):
+      """Interrupt requests for given request indices."""
       s = 's' if self.ALLCNT > 1 else ''
       delcnt = 0
       for i in range(self.ALLCNT) :
@@ -880,7 +926,7 @@ class DsRqst(PgRqst):
                      self.pglog("{}: Must be '{}' to interrupt {}".format(self.params['LN'], uid, rstr), self.PGOPT['wrnlog'])
                      continue
                   if 'FI' not in self.params:
-                     self.pglog(": locked by {}/{}; must add Mode option -FI (-ForceInterrupt) to interrupt".format(rstr, pid, host), self.PGOPT['wrnlog'])
+                     self.pglog("{}: locked by {}/{}; must add Mode option -FI (-ForceInterrupt) to interrupt".format(rstr, pid, host), self.PGOPT['wrnlog'])
                      continue
                   if not self.pgsystem("rdakill " + opts, self.LOGWRN, 7):
                      self.pglog("{}: Failed to interrupt Request locked by {}/{}".format(rstr, pid, host), self.PGOPT['errlog'])
@@ -902,8 +948,13 @@ class DsRqst(PgRqst):
             delcnt += 1
       if self.ALLCNT > 1: self.pglog("{} of {} request{} interrupted".format(delcnt, self.ALLCNT, s), self.LOGWRN)
 
-   # interrupt request partitions for given partition indices
    def interrupt_partitions(self, pindices = None, pcnt = 0):
+      """Interrupt request partitions for given partition indices.
+
+      Args:
+         pindices: List of partition indices, or None to use params.
+         pcnt: Number of partitions to process (default 0 means all).
+      """
       if not pindices: pindices = self.params['PI']
       if not pindices: return
       if not pcnt: pcnt = len(pindices)
@@ -958,8 +1009,12 @@ class DsRqst(PgRqst):
             dcnt += 1
       if pcnt > 1: self.pglog("{} of {} request partition{} interrupted".format(dcnt, pcnt, s), self.LOGWRN)
 
-   # add request partitions
    def add_request_partitions(self):
+      """Add partitions to requests for given request indices.
+
+      Returns:
+         Total number of partitions added.
+      """
       s = "s" if self.ALLCNT > 1 else ""
       self.pglog("Add partitions to {} Request{} ...".format(self.ALLCNT, s), self.WARNLG)
       indices = self.params['RI']
@@ -984,18 +1039,38 @@ class DsRqst(PgRqst):
          self.pglog(msg, self.PGOPT['wrnlog'])
       return mcnt
 
-   # unlock request and display/log error
    def request_error(self, ridx, errmsg):
+      """Unlock request and display/log error message.
+
+      Args:
+         ridx: Request index to unlock.
+         errmsg: Error message string.
+      """
       self.lock_request(ridx, 0, self.PGOPT['extlog'])
       return self.pglog(errmsg, self.PGOPT['errlog'])
 
-   # unlock partition and display/log error
    def partition_error(self, pidx, errmsg):
+      """Unlock partition and display/log error message.
+
+      Args:
+         pidx: Partition index to unlock.
+         errmsg: Error message string.
+      """
       self.lock_partition(pidx, 0, self.PGOPT['extlog'])
       return self.pglog(errmsg, self.PGOPT['errlog'])
 
-   # add partitions to one request
    def add_one_request_partitions(self, ridx, cnd, pgrqst, ptcmp = 0):
+      """Add partitions to one request.
+
+      Args:
+         ridx: Request index.
+         cnd: SQL condition string for the request.
+         pgrqst: Request record dictionary.
+         ptcmp: Compression partition flag (0=normal, 1=compression partitioning).
+
+      Returns:
+         Number of partitions added, or error result.
+      """
       rstat = pgrqst['status']
       rtype = pgrqst['rqsttype']
       rstr = "RQST{}-{}".format(ridx, pgrqst['dsid'])
@@ -1006,7 +1081,7 @@ class DsRqst(PgRqst):
              self.pgexec("UPDATE dsrqst set status = 'Q' WHERE " + cnd, self.PGOPT['extlog'])):
             rstat = pgrqst['status'] = 'Q'
          else:
-            return self.request_error(ridx, ": Status '{}', must be 'Q' to add partitions".format(rstr, rstat))
+            return self.request_error(ridx, "{}: Status '{}', must be 'Q' to add partitions".format(rstr, rstat))
       pgcntl = self.PGOPT['RCNTL']
       if ptcmp:
          ptlimit = self.CMPLMT
@@ -1125,8 +1200,15 @@ class DsRqst(PgRqst):
       if pcnt > 1: self.pglog("{}: {} partitions Added".format(rstr, pcnt), self.PGOPT['wrnlog']|self.FRCLOG)
       return pcnt
 
-   # get the dynamic option values for a partition
    def add_dynamic_partition_options(self, pidx, pgrqst, modrec, pcnd):
+      """Get and apply dynamic option values for a partition from request control.
+
+      Args:
+         pidx: Partition index.
+         pgrqst: Request record dictionary.
+         modrec: Modification record to update with dynamic options.
+         pcnd: SQL condition string for the partition.
+      """
       pgctl = self.get_dsrqst_control(pgrqst)
       if pgctl:
          pgptctl = {}
@@ -1140,23 +1222,43 @@ class DsRqst(PgRqst):
             self.pgupdt("ptrqst", pgptctl, pcnd, self.PGOPT['extlog'])
             modrec.update(pgptctl)
 
-   # reduce ptlimit for more partitions if compression
    def get_partition_limit(self, ptlimit, ptcmp = 0):
+      """Reduce partition file count limit to create more partitions when compression is used.
+
+      Args:
+         ptlimit: Partition file count limit.
+         ptcmp: Compression flag; nonzero if compression is applied.
+
+      Returns:
+         Adjusted partition limit.
+      """
       if ptcmp and ptlimit > self.CMPLMT:
          ptlimit = int(ptlimit/6.0)
          if ptlimit < self.CMPLMT: ptlimit = self.CMPLMT
       return ptlimit
 
-   # reduce ptsize for more partitions if compression
    def get_partition_size(self, ptsize, ptcmp = 0):
+      """Reduce partition data size limit to create more partitions when compression is used.
+
+      Args:
+         ptsize: Partition data size limit in bytes.
+         ptcmp: Compression flag; nonzero if compression is applied.
+
+      Returns:
+         Adjusted partition size limit.
+      """
       minsize = 3000000000
       if ptcmp and ptsize > minsize:
          ptsize = int(ptsize/6.0)
          if ptsize < minsize: ptsize = minsize
       return ptsize
 
-   # build requests
    def build_requests(self):
+      """Build requests for given request indices.
+
+      Returns:
+         Number of requests successfully built.
+      """
       s = "s" if self.ALLCNT > 1 else ""
       self.pglog("Build {} Request{} ...".format(self.ALLCNT, s), self.WARNLG)
       indices = self.params['RI']
@@ -1183,13 +1285,17 @@ class DsRqst(PgRqst):
             if self.lock_request(ridx, 1, self.PGOPT['errlog']) <= 0: continue
             mcnt += self.build_one_request(ridx, cnd, pgrqst)
       if mcnt > 1:
-         msg = "{} of {} request{} built Successfully by {}".format(mcnt, self.ALLCNT, self.PGLOG['CURUID'])
+         msg = "{} of {} request{} built Successfully by {}".format(mcnt, self.ALLCNT, s, self.PGLOG['CURUID'])
          if self.PGLOG['CURUID'] != self.params['LN']: msg += " for " + self.params['LN']
          self.pglog(msg, self.PGOPT['wrnlog'])
       return mcnt
 
-   # process request partitions
    def process_partitions(self):
+      """Process request partitions for given partition indices.
+
+      Returns:
+         Number of partitions successfully processed.
+      """
       s = "s" if self.ALLCNT > 1 else ""
       self.pglog("Process {} Request Partition{} ...".format(self.ALLCNT, s), self.WARNLG)
       indices = self.params['PI']
@@ -1214,8 +1320,16 @@ class DsRqst(PgRqst):
          self.pglog(msg, self.PGOPT['wrnlog'])
       return mcnt
 
-   # try to finish building a request after its partions are all processed
    def finish_one_request(self, ridx, pidx = 0):
+      """Try to finish building a request after all its partitions are processed.
+
+      Args:
+         ridx: Request index.
+         pidx: Last processed partition index (default 0).
+
+      Returns:
+         1 if request built successfully, 0 otherwise.
+      """
       cnd = "rindex = {}".format(ridx)
       if self.pgget('ptrqst', "", cnd + " AND status <> 'O'", self.PGOPT['extlog']): return 0   # partition not done yet
       pgrqst = self.pgget("dsrqst", "*", cnd, self.PGOPT['extlog'])
@@ -1225,8 +1339,16 @@ class DsRqst(PgRqst):
       if self.lock_request(ridx, 1, self.PGOPT['errlog']) <= 0: return 0
       return self.build_one_request(ridx, cnd, pgrqst)
 
-   #  finish one partition for a given request index
    def finish_one_partition(self, ridx, cnd):
+      """Finish processing one partition for a given request index.
+
+      Args:
+         ridx: Request index.
+         cnd: SQL condition string for the request.
+
+      Returns:
+         Processed partition index, or error log result.
+      """
       pgrqst = self.pgget("dsrqst", "*", cnd, self.PGOPT['extlog'])
       if not pgrqst: return self.pglog("RQST{}: can not get Request info".format(ridx), self.PGOPT['errlog'])
       # get the first queued partition
@@ -1238,8 +1360,17 @@ class DsRqst(PgRqst):
       if self.lock_partition(pidx, 1, self.PGOPT['errlog']) <= 0: return 0
       return self.process_one_partition(pidx, "pindex = {}".format(pidx), pgpart, ridx, pgrqst)
 
-   # build one request
    def build_one_request(self, ridx, cnd, pgrqst):
+      """Build one request by processing files, running commands, and setting status.
+
+      Args:
+         ridx: Request index.
+         cnd: SQL condition string for the request.
+         pgrqst: Request record dictionary.
+
+      Returns:
+         1 if built successfully, 0 otherwise.
+      """
       rstat = pgrqst['status']
       rtype = pgrqst['rqsttype']
       rstr = "RQST{}-{}".format(ridx, pgrqst['dsid'])
@@ -1335,8 +1466,19 @@ class DsRqst(PgRqst):
       else:
          return 0
 
-   # process one request partition
    def process_one_partition(self, pidx, cnd, pgpart, ridx, pgrqst):
+      """Process one request partition.
+
+      Args:
+         pidx: Partition index.
+         cnd: SQL condition string for the partition.
+         pgpart: Partition record dictionary.
+         ridx: Parent request index.
+         pgrqst: Parent request record dictionary.
+
+      Returns:
+         1 if partition processed successfully, 0 otherwise.
+      """
       ret = 0
       rstat = pgpart['status']
       rtype = pgrqst['rqsttype']
@@ -1404,8 +1546,21 @@ class DsRqst(PgRqst):
             ret = 0
       return ret
 
-   # convert file formats and stage online for download
    def stage_convert_files(self, ridx, cnd, rstr, pgrqst, errmsg, cmd, rtype):
+      """Convert file formats and stage online for download.
+
+      Args:
+         ridx: Request index.
+         cnd: SQL condition string for the request.
+         rstr: Request identifier string for logging.
+         pgrqst: Request record dictionary.
+         errmsg: Accumulated error message string.
+         cmd: Conversion command string.
+         rtype: Request type ('F' for data format, 'A' for archive format).
+
+      Returns:
+         Tuple of (status_code, error_message). Status 'O' on success, 'E' on error.
+      """
       cnts = {}
       if rtype == 'F':
          if not pgrqst['data_format']:  # should not happen normally
@@ -1481,8 +1636,15 @@ class DsRqst(PgRqst):
       else:
          return ("O", '')
 
-   # cp local files online, fatal if error
    def stage_local_files(self, ridx, cnd, rstr, pgrqst):
+      """Copy local files online for download.
+
+      Args:
+         ridx: Request index.
+         cnd: SQL condition string for the request.
+         rstr: Request identifier string for logging.
+         pgrqst: Request record dictionary.
+      """
       lcnt = len(self.params['LF']) if 'LF' in self.params else 0
       if lcnt == 0: return
       rdir = self.get_file_path(None, pgrqst['rqstid'], pgrqst['location'], 1)
@@ -1532,15 +1694,32 @@ class DsRqst(PgRqst):
       self.set_web_files(ridx)
       self.ALLCNT = scnt
 
-   # create a working data storage directory for a given request record
    def create_request_directory(self, pgrqst):
+      """Create a working data storage directory for a given request record.
+
+      Args:
+         pgrqst: Request record dictionary.
+      """
       rdir = self.get_file_path(None, pgrqst['rqstid'], pgrqst['location'], 1)
       self.make_local_directory(rdir, self.PGOPT['extlog'])
       if pgrqst['tarflag'] == 'Y':
          self.make_local_directory("{}/{}".format(rdir, self.PGOPT['TARPATH']), self.PGOPT['extlog'])
 
-   #  call a command to build a customized request, such as subsetting 
    def call_command(self, ridx, cnd, cmd, rstr, pgrqst, pidx, pgpart):
+      """Call a command to build a customized request (e.g., subsetting).
+
+      Args:
+         ridx: Request index.
+         cnd: SQL condition string.
+         cmd: Command string to execute.
+         rstr: Request identifier string for logging.
+         pgrqst: Request record dictionary.
+         pidx: Partition index (0 if not partitioned).
+         pgpart: Partition record dictionary, or None.
+
+      Returns:
+         Dictionary with optional keys: 'pgrqst', 'pgpart', 'errmsg'.
+      """
       rdir = self.get_file_path(None, pgrqst['rqstid'], pgrqst['location'], 1)
       cret = {}   # a dict to hold return info for this command call
       callcmd = 1
@@ -1880,22 +2059,47 @@ class DsRqst(PgRqst):
       if progress: self.set_dscheck_dcount(cnt, size, self.PGOPT['extlog'])
       return cret
 
-   # return 1 if error message is ok for empty output
    def check_empty_error(self, errmsg):
+      """Check if error message is acceptable for empty output.
+
+      Args:
+         errmsg: Error message string to check.
+
+      Returns:
+         1 if error is OK for empty output, 0 otherwise.
+      """
       ret = 0
       if re.search(r'ncks: ERROR Domain .* brackets no coordinate values', errmsg): ret = 1
       return ret
 
-   # specialist specified command for each file
    def get_file_command(self, cmd, pgrec):
+      """Build specialist-specified command for each file by substituting placeholders.
+
+      Args:
+         cmd: Command template string with placeholders (-OF, -WF, -IF, -RF, -FI).
+         pgrec: File record dictionary.
+
+      Returns:
+         Command string with placeholders replaced by actual values.
+      """
       if cmd.find('$') > -1: cmd = self.replace_environments(cmd, None, self.PGOPT['emlerr'])
       cmd = re.sub(r'( -OF| -WF)', ' ' + pgrec['wfile'], cmd, 1)
       cmd = re.sub(r' -FI', ' {}'.format(pgrec['findex']), cmd, 1)
       if pgrec['ofile']: cmd = re.sub(r'( -IF| -RF)', ' ' + pgrec['ofile'], cmd, 1)
       return cmd
 
-   # intialize the tarinfo dict for tarring small files
    def init_tarinfo(self, rstr, ridx, pidx, pgrqst):
+      """Initialize the tarinfo dictionary for tarring small files.
+
+      Args:
+         rstr: Request identifier string for logging.
+         ridx: Request index.
+         pidx: Partition index (0 if not partitioned).
+         pgrqst: Request record dictionary.
+
+      Returns:
+         Initialized tarinfo dictionary.
+      """
       tinfo = {
          'afmt' : pgrqst['file_format'],
          'rstr' : rstr,
@@ -1915,8 +2119,23 @@ class DsRqst(PgRqst):
       }
       return tinfo
 
-   # tarring small files
    def build_tarfile(self, tinfo, fidx = 0, file = None, size = 0, afmt = None, tidx = 0):
+      """Build tar files from small request files.
+
+      When called with fidx > 0, adds a file to the tar queue. When called with
+      fidx = 0 (no args except tinfo), finalizes and builds all pending tar files.
+
+      Args:
+         tinfo: Tarinfo dictionary tracking tar state.
+         fidx: File index to add (0 to finalize).
+         file: File name to add.
+         size: File size in bytes.
+         afmt: Archive format string.
+         tidx: Existing tar index if file was previously tarred.
+
+      Returns:
+         None on success, error message string on failure.
+      """
       tn = tinfo['tcnt']
       fn = tinfo['fcnt']
       if fidx:
@@ -2071,8 +2290,20 @@ class DsRqst(PgRqst):
                if otarfile: self.delete_local_file(otarfile, xlog)
       return None
 
-   # get a new request file record or with fields with changed values
    def get_file_record(self, pgrec, finfo, pgrqst, wfile, i, stype):
+      """Get a new request file record or a record with changed field values.
+
+      Args:
+         pgrec: Existing file record dictionary, or None for new record.
+         finfo: File info dictionary from check_local_file.
+         pgrqst: Request record dictionary.
+         wfile: Web file name, or None to keep existing.
+         i: File index in the request.
+         stype: Source type character.
+
+      Returns:
+         Dictionary of new/changed field values.
+      """
       newrec = {}
       if pgrec:
          afmt = self.valid_archive_format(pgrqst['file_format'], pgrec['file_format'])
@@ -2111,8 +2342,23 @@ class DsRqst(PgRqst):
          if pgrqst['file_format']: newrec['file_format'] = pgrqst['file_format']
       return newrec
 
-   #  Return: a file record for update
    def set_file_record(self, wfile, fstat, pgrec, pgfiles, cnts, i, pgrqst, stype, rstr):
+      """Set a file record for update after format conversion.
+
+      Args:
+         wfile: Converted web file name.
+         fstat: File status character ('O' or 'E').
+         pgrec: Original file record dictionary.
+         pgfiles: Multiple file records dictionary (updated in-place).
+         cnts: Counters dictionary with keys 'F', 'P', 'O', 'E'.
+         i: File index.
+         pgrqst: Request record dictionary.
+         stype: Source type character.
+         rstr: Request identifier string for logging.
+
+      Returns:
+         Error message string (empty on success).
+      """
       fmsg = "{}-{}".format(rstr, pgrec['wfile'])
       errmsg = ""
       if (fstat == 'O' and pgrec['wfile'] != wfile and not op.isfile( pgrec['wfile']) and
@@ -2139,8 +2385,12 @@ class DsRqst(PgRqst):
          cnts['E'] += 1
       return errmsg
 
-   # check and purge the requests
    def purge_requests(self):
+      """Check and purge requests that are due for purging.
+
+      Returns:
+         Number of requests processed.
+      """
       cdate = self.curdate()
       ctime = self.curtime()
       if self.ALLCNT > 0:
@@ -2162,9 +2412,18 @@ class DsRqst(PgRqst):
       self.pglog("{} of {} request{} Purged by '{}' at {}".format(dcnt, rcnt , s, self.params['LN'], self.curtime(1)), self.PGOPT['wrnlog'])
       return rcnt
 
-   # purge one request
-   # dppurge: <=0 record purge info only, > 0 record purge info and delete request
    def purge_one_request(self, ridx, cdate, ctime, dopurge = 0):
+      """Purge one request.
+
+      Args:
+         ridx: Request index.
+         cdate: Current date string.
+         ctime: Current time string.
+         dopurge: If <= 0, record purge info only; if > 0, also delete request.
+
+      Returns:
+         1 on success, 0 or error log result on failure.
+      """
       cnd = "rindex = {}".format(ridx)
       pgrqst = self.pgget("dsrqst", "*", cnd, self.PGOPT['extlog'])
       if not pgrqst: return self.pglog("can not get Request info for " + cnd, self.PGOPT['errlog'])
@@ -2242,8 +2501,12 @@ class DsRqst(PgRqst):
             self.pglog("{} recorded into dspurge at {}".format(rstr, self.curtime(1)), self.PGOPT['wrnlog']|self.FRCLOG)
       return ret
 
-   # saved the purged files in tabl wfpurge
    def record_purge_files(self, cnd):
+      """Save the purged files in table wfpurge for usage tracking.
+
+      Args:
+         cnd: SQL condition string for the request.
+      """
       # gather all file records for the request
       fields = "rindex, gindex, srcid, srctype, size, type, data_format, file_format, wfile"
       pgfiles = self.pgmget("wfrqst", fields, cnd, self.PGOPT['extlog'])
@@ -2257,8 +2520,8 @@ class DsRqst(PgRqst):
       s = "s" if fcnt > 1 else ""
       self.pglog("{} of {} request file{} recorded for usage".format(pcnt, fcnt, s), self.PGOPT['wrnlog']|self.FRCLOG)
 
-   # modify purge date/time information
    def reset_purge_time(self):
+      """Modify purge date/time information for given request indices."""
       tname = "dsrqst"
       hash = self.TBLHASH[tname]
       s = 's' if self.ALLCNT > 1 else ''
@@ -2305,9 +2568,16 @@ class DsRqst(PgRqst):
          if 'WE' in self.params: self.send_request_email_notice(pgrec, None, pgrec['fcount'], rstat, (self.PGOPT['ready'] if pgrec['location']  else ""))
       self.pglog("{}/{} of {} request{} modified!".format(modcnt, addcnt, self.ALLCNT, s), self.PGOPT['wrnlog'])
 
-   # get queued requests for host
-   # get requests with pid values on host too if not nopid
    def get_queued_requests(self, host, nopid = 0):
+      """Get queued requests for host, including locked requests if not nopid.
+
+      Args:
+         host: Hostname string.
+         nopid: If nonzero, only get requests with pid=0.
+
+      Returns:
+         Reordered records dictionary, or log message if none found.
+      """
       cnd = "specialist = '{}' AND status = 'Q' AND rqsttype <> 'C'".format(self.params['LN'])
       if nopid:
          cnd += " AND pid = 0 AND (hostname = '' OR hostname = '{}')".format(host)
@@ -2320,8 +2590,16 @@ class DsRqst(PgRqst):
       else:
          return self.pglog("No Request Queued for '{}' on {} at {}".format(self.params['LN'], host, self.curtime(1)), self.PGOPT['wrnlog'])
 
-   # reorder requests in a fair order
    def reorder_requests(self, pgrecs, mcnt):
+      """Reorder requests in a fair order to balance across users and datasets.
+
+      Args:
+         pgrecs: Multiple records dictionary with request data.
+         mcnt: Number of records.
+
+      Returns:
+         Reordered records dictionary.
+      """
       m = lcnt = ncnt = dcnt = rcnt = 0
       pgnows = pglats = pgruns = None
       while True:
@@ -2364,8 +2642,8 @@ class DsRqst(PgRqst):
          pglats = pgruns = None
       return pgnows
 
-   # clean the data files in data/dsnnn.n dirctories that are not included in any request in RDADB
    def clean_unused_data(self):
+      """Clean data files in data/dsnnn.n directories that are not included in any request in RDADB."""
       self.check_local_writable(self.params['WH'], "Delete Data Files for Requests Purged Already", self.PGOPT['extlog'])
       self.change_local_directory(self.join_paths(self.params['WH'], "data"), self.PGOPT['wrnlog'])
       dsids = self.params['DS'] if 'DS' in self.params else glob.glob("ds*.*")
@@ -2387,8 +2665,15 @@ class DsRqst(PgRqst):
             self.pglog("{} unused File{} found for {} Dataset{}".format(acnt, s, dcnt, ss), self.LOGWRN)
             self.pglog("Add Mode option -FP to clean the data", self.WARNLG)
 
-   # clean unused data for one dataset
    def clean_dataset_data(self, dsid):
+      """Clean unused data for one dataset.
+
+      Args:
+         dsid: Dataset ID string.
+
+      Returns:
+         Number of unused files found/cleaned.
+      """
       files = glob.glob(dsid + "/*")
       if not files: return 0
       cnt = 0
@@ -2406,8 +2691,8 @@ class DsRqst(PgRqst):
          self.pglog("{} unused File{} {} for {}".format(cnt, s, ('cleaned' if 'FP' in self.params else 'found'), dsid), self.LOGWRN)
       return cnt
 
-   # clean the request directories on disk that are not in RDADB
    def clean_unused_requests(self):
+      """Clean request directories on disk that are not in RDADB."""
       self.check_local_writable(self.params['WH'], "Delete Directories for Requested Purged Already", self.PGOPT['extlog'])
       self.change_local_directory(self.params['WH'], self.PGOPT['extlog'])
       rids = self.params['RN'] if 'RN' in self.params else glob.glob("*")
@@ -2428,8 +2713,8 @@ class DsRqst(PgRqst):
       else:
          self.pglog("{} unused Request Director{} found{}".format(rcnt, s, ("; add Mode option -FP to clean" if rcnt > 0 else "")), self.WARNLG)
 
-   # reset request file status for files are not on disk
    def reset_all_file_status(self):
+      """Reset request file status for files that are not on disk."""
       pgrecs = self.pgmget("dsrqst", 'rindex, dsid, rqstid, rqsttype', "status = 'E' AND pid = 0", self.PGOPT['extlog'])
       cnt = len(pgrecs['rindex']) if pgrecs else 0
       if not cnt: return
@@ -2446,11 +2731,21 @@ class DsRqst(PgRqst):
          mcnt += self.reset_request_file_status(ridx, dpath, pgrqst['dsid'], pgfiles)
       if mcnt == 0:
          self.pglog("No file record needs to set status to 'R' from 'O'", self.LOGWRN)
-      elif rcnt > 1 and mcnt > 1 and self.params['FP']:
+      elif rcnt > 1 and mcnt > 1 and 'FP' in self.params:
          self.pglog("Total {} request file records set status to 'R' from 'O'".format(mcnt), self.LOGWRN)
 
-   # reset the status for all provided request files
    def reset_request_file_status(self, ridx, dpath, dsid, pgrecs):
+      """Reset the status for all provided request files that are not online.
+
+      Args:
+         ridx: Request index.
+         dpath: Data path for the files.
+         dsid: Dataset ID string.
+         pgrecs: Multiple file records dictionary.
+
+      Returns:
+         Number of file records modified.
+      """
       rstr = "{}-RQST{}".format(dsid, ridx)
       cnt = len(pgrecs['findex'])
       if self.check_local_file(dpath):
@@ -2478,8 +2773,13 @@ class DsRqst(PgRqst):
             self.pglog("{}: add Mode option -FP to set {} file record{} to status 'R' from 'O'".format(rstr, mcnt, s), self.WARNLG)
       return mcnt
 
-   # clean the reuqest usage saved previously
    def clean_request_usage(self, ridx, cnd):
+      """Clean the request usage records saved previously.
+
+      Args:
+         ridx: Request index.
+         cnd: SQL condition string for the request.
+      """
       pgrec = self.pgget("dspurge", "*", cnd, self.PGOPT['extlog'])
       if pgrec:
          if self.request_type(pgrec['rqsttype'], 1):
@@ -2494,8 +2794,8 @@ class DsRqst(PgRqst):
          self.pgdel(atable, acnd, self.PGOPT['extlog'])
          self.pglog("Pre-recorded usage information cleaned for Request Index {}".format(ridx), self.PGOPT['wrnlog'])
 
-   # email notice for request information
    def email_request_status(self):
+      """Email notice for request information to the specialist."""
       tname = 'dsrqst'
       cnd = self.get_hash_condition(tname, None, None, 1)
       ocnd = self.get_order_string((self.params['ON'] if 'ON' in self.params else "r"), tname)
@@ -2524,8 +2824,8 @@ class DsRqst(PgRqst):
       self.send_email(subject, self.params['LN'], mbuf)
       self.pglog("Email sent to {} With Subject '{}'".format(self.params['LN'], subject), self.LOGWRN)
 
-   # build email message for a given request record
    def build_request_message(self, pgrec):
+      """Build an email message string summarizing a given request record."""
       msg = ("\nIndex {} of {} for {}".format(pgrec['rindex'], pgrec['dsid'], self.request_type(pgrec['rqsttype'])) +
              " by {} on {}".format(pgrec['email'], pgrec['date_rqst']))
       if pgrec['status'] == 'O' or pgrec['status'] == 'H' and pgrec['date_ready']:
@@ -2538,17 +2838,24 @@ class DsRqst(PgRqst):
          msg += ", current status {}\n".format(pgrec['rstat'])
       return msg
 
-   # restore self.ALLCNT purged requests for reprocessing
    def restore_requests(self):
+      """Restore purged requests for reprocessing."""
       s = "s" if self.ALLCNT > 1 else ""
       self.pglog("Restore {} Request{} ...".format(self.ALLCNT, s), self.WARNLG)
       pcnt = 0
       for i in range(self.ALLCNT):
          pcnt += self.restore_one_request(self.params['RI'][i])
-      self.pglog("{} of {} request{} retored at {}".format(pcnt, self.ALLCNT, s, self.curtime(1)), self.PGOPT['wrnlog'])
+      self.pglog("{} of {} request{} restored at {}".format(pcnt, self.ALLCNT, s, self.curtime(1)), self.PGOPT['wrnlog'])
 
-   # restore a purge request
    def restore_one_request(self, ridx):
+      """Restore a single purged request by copying its record from dspurge back to dsrqst.
+
+      Args:
+         ridx: Request index to restore.
+
+      Returns:
+         1 on success, 0 on failure.
+      """
       cnd = "rindex = {}".format(ridx)
       if self.pgget("dsrqst", "", cnd, self.PGOPT['extlog']):
          return self.pglog("RQST{}: not purged yet".format(ridx), self.PGOPT['errlog'])
@@ -2603,8 +2910,16 @@ class DsRqst(PgRqst):
          pgrec['ptcount'] = 0
       return self.pgadd("dsrqst", pgrec, self.PGOPT['extlog'])
 
-   # recreate a web request file 
    def web_request_file(self, record, dsid):
+      """Recreate a web request file record from the source file information.
+
+      Args:
+         record: Purged file record with srcid.
+         dsid: Dataset ID string.
+
+      Returns:
+         File record dictionary, or None if source not found.
+      """
       pgrec = self.pgget_wfile(dsid, "wfile, data_size size, data_format, file_format",
                                "wid = {}".format(record['srcid']), self.PGOPT['extlog'])
       if not pgrec: return None
@@ -2617,8 +2932,8 @@ class DsRqst(PgRqst):
       record['file_format'] = pgrec['file_format']
       return record
 
-# main function to excecute this script
 def main():
+   """Main entry point for the dsrqst command-line utility."""
    object = DsRqst()
    object.read_parameters()
    object.start_actions()

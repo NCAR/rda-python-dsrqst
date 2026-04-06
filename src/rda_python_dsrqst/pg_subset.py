@@ -14,13 +14,29 @@ from os import path as op
 from rda_python_common.pg_file import PgFile
 
 class PgSubset(PgFile):
+   """Dataset subsetting library with validation and file management utilities.
+
+   Extends PgFile with methods for validating subset requests, managing
+   subset request files, handling partitions, and parsing geographic
+   coordinate strings for spatial subsetting.
+   """
 
    def __init__(self):
+      """Initialize PgSubset."""
       super().__init__()  # initialize parent class
 
-   # validate the subset request
-   # return dsrqst record upon success
    def valid_subset_request(self, ridx, rdir, dsid, logact = None):
+      """Validate a subset request by checking index, type, info, and directory.
+
+      Args:
+         ridx: Request index.
+         rdir: Request directory path, or None.
+         dsid: Dataset ID to validate against, or None.
+         logact: Logging action flag, defaults to LOGERR.
+
+      Returns:
+         Request record dictionary on success, or error log result on failure.
+      """
       if logact is None: logact = self.LOGERR
       logact |= self.ERRLOG
       if not ridx: return self.pglog("Miss Request Index for subset", logact)
@@ -45,8 +61,22 @@ class PgSubset(PgFile):
          return self.pglog("{}: Miss Request Id for request directory".format(ridx), logact)
       return pgrqst
 
-   # add a request file to given 
    def add_subset_file(self, ridx, tofile, fromfile, type, dfmt, oidx, note, logact = None):
+      """Add or update a subset request file record in the wfrqst table.
+
+      Args:
+         ridx: Request index.
+         tofile: Target file name for the request.
+         fromfile: Source file to copy from, or None.
+         type: File type character (e.g., 'D' for data).
+         dfmt: Data format string (e.g., 'NetCDF', 'GRIB').
+         oidx: Display order index.
+         note: Description note for the file.
+         logact: Logging action flag, defaults to LOGWRN.
+
+      Returns:
+         Result of database update or insert operation.
+      """
       if logact is None: logact = self.LOGWRN
       wfile = {}
       if fromfile: self.local_copy_local(tofile, fromfile, logact)
@@ -63,8 +93,19 @@ class PgSubset(PgFile):
          wfile['wfile'] = tofile
          return self.pgadd("wfrqst", wfile, logact)
 
-   # set file count
    def set_dsrqst_fcount(self, ridx, fcount, isize, rsize = None, logact = None):
+      """Set file count and size metrics for a request.
+
+      Args:
+         ridx: Request index.
+         fcount: Number of files.
+         isize: Input data size.
+         rsize: Request data size, or None.
+         logact: Logging action flag, defaults to LOGWRN.
+
+      Returns:
+         Result of database update operation.
+      """
       if logact is None: logact = self.LOGWRN
       record = {}
       record['fcount'] = fcount
@@ -72,14 +113,34 @@ class PgSubset(PgFile):
       if rsize: record['size_request'] = rsize
       return self.pgupdt("dsrqst", record, "rindex = {}".format(ridx), logact)   
 
-   # set processed file count
    def reset_dsrqst_pcount(self, ridx, pcount, logact = None):
+      """Reset the processed file count for a request.
+
+      Args:
+         ridx: Request index.
+         pcount: Processed file count value.
+         logact: Logging action flag, defaults to LOGWRN.
+
+      Returns:
+         Result of database update operation.
+      """
       if logact is None: logact = self.LOGWRN
       record = {'pcount' : pcount}
       return self.pgupdt("dsrqst", record, "rindex = {}".format(ridx), logact)
 
-   # add child request
    def add_request_child(self, pgrqst, dsid, fcount, isize = None, rsize = None):
+      """Add or update a child request for a different dataset under the parent request.
+
+      Args:
+         pgrqst: Parent request record dictionary.
+         dsid: Dataset ID for the child request.
+         fcount: File count for the child request.
+         isize: Input data size, or None.
+         rsize: Request data size, or None.
+
+      Returns:
+         Child request index.
+      """
       if dsid == pgrqst['dsid']:
          self.pglog("{}: Cannot add child request for the same dataset {}".format(pgrqst['rindex'], dsid), self.LOGERR)
          return pgrqst['rindex']
@@ -105,13 +166,28 @@ class PgSubset(PgFile):
          self.pglog("{}: Child request added for Request {} of {}".format(ridx, pgrqst['rindex'], dsid), self.LOGWRN)
       return ridx
 
-   # increase 1 for pcount
    def increment_dsrqst_pcount(self, ridx, logact = None):
+      """Increment the processed file count by 1 for a request.
+
+      Args:
+         ridx: Request index.
+         logact: Logging action flag, defaults to LOGWRN.
+
+      Returns:
+         Result of the SQL UPDATE execution.
+      """
       if logact is None: logact = self.LOGWRN
       return self.pgexec("UPDATE dsrqst SET pcount = pcount + 1 WHERE rindex = {}".format(ridx), logact)
 
-   # remove previously procssed subset files both in RDADB and on disk
    def clean_subset_request(self, ridx, rdir, pattern, logact = None):
+      """Remove previously processed subset files from both RDADB and disk.
+
+      Args:
+         ridx: Request index, or None to skip database cleanup.
+         rdir: Request directory path, or None to skip disk cleanup.
+         pattern: File name pattern to match for deletion, or None for all files.
+         logact: Logging action flag, defaults to LOGWRN.
+      """
       if logact is None: logact = self.LOGWRN
       if ridx:
          rcnd = "rindex = {}".format(ridx)
@@ -132,8 +208,19 @@ class PgSubset(PgFile):
             s = 's' if fcnt > 1 else ''
             self.pglog("{} file{} cleaned from request directory {}".format(fcnt, s, rdir), logact&(~self.EXITLG))
 
-   # check if a subset request is built already
    def request_built(self, ridx, rdir, cfile, fcnt, logact = None):
+      """Check if a subset request has already been built.
+
+      Args:
+         ridx: Request index.
+         rdir: Request directory path.
+         cfile: Check file name to verify existence, or None.
+         fcnt: Expected file count, or None to skip count check.
+         logact: Logging action flag, defaults to LOGWRN.
+
+      Returns:
+         1 if request is built, 0 otherwise.
+      """
       if logact is None: logact = self.LOGWRN
       cnd = "rindex = {}".format(ridx)
       if fcnt and fcnt != self.pgget("wfrqst", "", cnd, logact): return 0
@@ -142,29 +229,21 @@ class PgSubset(PgFile):
          if not op.exists("{}/{}".format(rdir, cfile)): return 0
       return 1
 
-   # add_request_file(ridx, file, pgrec. logact)
-   #   ridx - Request Index (mandatory)
-   #   file - Request file name (mandatory)
-   #   pgrec - optional hash reference for additional request file information.
-   #            pass null if no addtional file information.
-   #     All available keys are:
-   #     `pindex` int(11) DEFAULT '0' - 'if > 0, under a request partition',
-   #     `gindex` int(11) DEFAULT '0' - 'if > 0, under a subgroup in a dataset',
-   #     `srcid` int(11) DEFAULT '0' - 'if > 0, source file id, mssid/wid',
-   #     `srctype` char(1) DEFAULT 'W' - 'source data type, M-MSS, W-Web',
-   #     `size` bigint(20) DEFAULT '0' - 'bytes of data',
-   #     `date` date DEFAULT NULL - 'date file last loaded',
-   #     `time` time DEFAULT NULL - 'time file last loaded',
-   #     `type` char(1) DEFAULT 'D' - 'Data (default), dOcument or Software',
-   #     `status` char(1) DEFAULT 'R' - 'Requested, Online, Error loading',
-   #     `disp_order` int(11) DEFAULT NULL - 'display order of the files in a request',
-   #     `data_format` varchar(10) DEFAULT NULL - 'data format NetCDF, GRIB',
-   #     `file_format` varchar(10) DEFAULT NULL - 'archive format tar, compress',
-   #     `ofile` varchar(128) DEFAULT NULL - 'original file name for delayed/conversion modes',
-   #     `command` varchar(255) DEFAULT NULL - 'executable for processing subset of this requested file',
-   #     `cmd_detail` mediumtest - detail command info to build this file
-   #     `note` text - description of this file,
    def add_request_file(self, ridx, file, pgrec, logact = None):
+      """Add or update a request file record in the wfrqst table.
+
+      Args:
+         ridx: Request index (mandatory).
+         file: Request file name (mandatory).
+         pgrec: Optional dictionary with additional file information (pindex, gindex,
+                srcid, srctype, size, date, time, type, status, disp_order,
+                data_format, file_format, ofile, command, cmd_detail, note).
+                Pass None if no additional info.
+         logact: Logging action flag, defaults to LOGWRN.
+
+      Returns:
+         Result of database update or insert operation.
+      """
       if logact is None: logact = self.LOGWRN
       record = {'srctype' : 'W', 'status' : 'R'}
       cnd = "rindex = {} AND wfile = '{}'".format(ridx, file)
@@ -179,8 +258,16 @@ class PgSubset(PgFile):
          record['wfile'] = file
          return self.pgadd("wfrqst", record, logact)
 
-   #  get longitude pair for given string
    def get_longitudes(self, lstr, resol):
+      """Parse a longitude string and return a west-east pair adjusted for resolution.
+
+      Args:
+         lstr: Longitude string in format "value W/E, value W/E".
+         resol: Grid resolution for minimum span adjustment.
+
+      Returns:
+         List [west, east] of longitude values in degrees (0-360 range).
+      """
       ms = re.match(r'^(\S+)\s*(\w),\s*(\S+)\s*(\w)', lstr)
       if ms:
          w = float(ms.group(1))
@@ -207,8 +294,16 @@ class PgSubset(PgFile):
          e -= 360.0
       return [w, e]
 
-   # get latitude pair for given string
    def get_latitudes(self, lstr, resol):
+      """Parse a latitude string and return a south-north pair adjusted for resolution.
+
+      Args:
+         lstr: Latitude string in format "value N/S, value N/S".
+         resol: Grid resolution for minimum span adjustment.
+
+      Returns:
+         List [south, north] of latitude values in degrees (-90 to 90 range).
+      """
       ms = re.match(r'^(\S+)\s*(\w),\s+(\S+)\s*(\w)', lstr)
       if ms:
          s = float(ms.group(1))
