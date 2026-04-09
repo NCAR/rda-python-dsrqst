@@ -878,18 +878,18 @@ class DsRqst(PgRqst):
       for pidx in self.params['PI']:
          pgrec = self.pgget("ptrqst", "pid, lockhost", "pindex = {}".format(pidx), self.PGOPT['extlog'])
          if not pgrec:
-            self.pglog("Request Paritition {}: Not exists".format(pidx), self.PGOPT['errlog'])
+            self.pglog("Request Partition {}: Not exists".format(pidx), self.PGOPT['errlog'])
          elif not pgrec['pid']:
             self.pglog("Request Partition {}: Not locked".format(pidx), self.PGOPT['wrnlog'])
          elif self.lock_partition(pidx, 0, self.PGOPT['extlog']) > 0:
             modcnt += 1
-            self.pglog("Request Paritition {}: Unlocked {}/{}".format(pidx, pgrec['pid'], pgrec['lockhost']), self.PGOPT['wrnlog'])
+            self.pglog("Request Partition {}: Unlocked {}/{}".format(pidx, pgrec['pid'], pgrec['lockhost']), self.PGOPT['wrnlog'])
          elif (self.check_host_down(None, pgrec['lockhost']) and
                self.lock_partition(pidx, -2, self.PGOPT['extlog']) > 0):
             modcnt += 1
-            self.pglog("Request Paritition {}: Force unlocked {}/{}".format(pidx, pgrec['pid'], pgrec['lockhost']), self.PGOPT['wrnlog'])
+            self.pglog("Request Partition {}: Force unlocked {}/{}".format(pidx, pgrec['pid'], pgrec['lockhost']), self.PGOPT['wrnlog'])
          else:
-            self.pglog("Request Paritition {}: Unable to unlock {}/{}".format(pidx, pgrec['pid'], pgrec['lockhost']), self.PGOPT['wrnlog'])
+            self.pglog("Request Partition {}: Unable to unlock {}/{}".format(pidx, pgrec['pid'], pgrec['lockhost']), self.PGOPT['wrnlog'])
       if self.ALLCNT > 1: self.pglog("{} of {} request partition{} unlocked from RDADB".format(modcnt, self.ALLCNT, s), self.LOGWRN) 
 
    def interrupt_requests(self):
@@ -964,8 +964,8 @@ class DsRqst(PgRqst):
          pidx = pindices[i]
          cnd = "pindex = {}".format(pidx)
          pgrec = self.pgget("ptrqst", "dsid, pid, lockhost, status", cnd, self.PGOPT['extlog'])
-         if not pgrec: self.pglog("Request Paritition {}: not in RDADB".format(pidx), self.PGOPT['extlog'])
-         pstr = "Request Paritition {} of {}".format(pidx, pgrec['dsid'])
+         if not pgrec: self.pglog("Request Partition {}: not in RDADB".format(pidx), self.PGOPT['extlog'])
+         pstr = "Request Partition {} of {}".format(pidx, pgrec['dsid'])
          if pgrec['status'] != "Q":
             self.pglog("{}: Status '{}'; must be 'Q' to interrupt".format(pstr, pgrec['status']), self.PGOPT['errlog'])
             continue
