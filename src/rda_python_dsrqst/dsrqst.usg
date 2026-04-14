@@ -12,9 +12,9 @@ This application:
     request types to allow users to submit data requests. Hostnames can be
     specified to control on which machines the data requests are processed.
     Requests are processed in either fully automated or specialist-controlled
-    mode.
+    mode
   - Divides a request further into partitions. Partitions are processed
-    concurrently, one per independent process.
+    concurrently, one per independent process
   - Provides web interfaces on GDEX Server for users, such as data subsets,
     are provided by DECS specialists. Detailed request information is passed
     to web utility program 'dsrqst.php' with specified HTTP POST entries
@@ -29,10 +29,10 @@ This application:
   - Builds queued requests, or processes queued request partitions, via the
     centralized daemon 'dscheck'. Final requested data are staged on GDEX
     Server for online or background command-line access. Data files requested
-    by multiple users are shared to reduce redundancy.
+    by multiple users are shared to reduce redundancy
   - Purges online requests via the centralized daemon 'dscheck' or manually.
     Information about purged requests is recorded in GDEXDB and later
-    gathered for data usage metrics via utility program 'viewrqstusage'.
+    gathered for data usage metrics via utility program 'viewrqstusage'
   - Sends an email notice to both the user who requested data and, optionally,
     the specialist who processes the request, after a request is built
     successfully. A link in the email notice leads to the webpage of the file
@@ -1242,7 +1242,7 @@ Two types of Info options are used:
   in a request control record via Action -SC (-SetControl) to control who is
   Cc'd for an email notice after a request is successfully built. It defaults to
   'S' for the associated specialist only. Multiple emails can be specified in a
-  single space-delimited string up to 255 characters. Set it to empty to stop
+  single space delimited string up to 255 characters. Set it to empty to stop
   carbon copy email.
 
   For DECS specialists, login usernames are acceptable instead of full email
@@ -1490,7 +1490,7 @@ Two types of Info options are used:
   -TA or -TArflag, a field in request control and request records. 'Y' to tar
   small request files, or 'N' for no.
 
-  -TF or -ToFormat (Alias: -OutputFormat|-ProductFormat), ':'-delimited string
+  -TF or -ToFormat (Alias: -OutputFormat|-ProductFormat), ':' delimited string
   of data format(s) for output files staged on GDEX Server for download after
   format conversion or subsetting. These are content formats of output data
   files. For example, NETCDF:GRIB.
