@@ -12,9 +12,9 @@ This application:
     request types to allow users to submit data requests. Hostnames can be
     specified to control on which machines the data requests are processed.
     Requests are processed in either fully automated or specialist-controlled
-    mode.
+    mode
   - Divides a request further into partitions. Partitions are processed
-    concurrently, one per independent process.
+    concurrently, one per independent process
   - Provides web interfaces on GDEX Server for users, such as data subsets,
     are provided by DECS specialists. Detailed request information is passed
     to web utility program 'dsrqst.php' with specified HTTP POST entries
@@ -29,10 +29,10 @@ This application:
   - Builds queued requests, or processes queued request partitions, via the
     centralized daemon 'dscheck'. Final requested data are staged on GDEX
     Server for online or background command-line access. Data files requested
-    by multiple users are shared to reduce redundancy.
+    by multiple users are shared to reduce redundancy
   - Purges online requests via the centralized daemon 'dscheck' or manually.
     Information about purged requests is recorded in GDEXDB and later
-    gathered for data usage metrics via utility program 'viewrqstusage'.
+    gathered for data usage metrics via utility program 'viewrqstusage'
   - Sends an email notice to both the user who requested data and, optionally,
     the specialist who processes the request, after a request is built
     successfully. A link in the email notice leads to the webpage of the file
