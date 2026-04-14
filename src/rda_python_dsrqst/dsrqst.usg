@@ -1242,7 +1242,7 @@ Two types of Info options are used:
   in a request control record via Action -SC (-SetControl) to control who is
   Cc'd for an email notice after a request is successfully built. It defaults to
   'S' for the associated specialist only. Multiple emails can be specified in a
-  single space-delimited string up to 255 characters. Set it to empty to stop
+  single space delimited string up to 255 characters. Set it to empty to stop
   carbon copy email.
 
   For DECS specialists, login usernames are acceptable instead of full email
@@ -1490,7 +1490,7 @@ Two types of Info options are used:
   -TA or -TArflag, a field in request control and request records. 'Y' to tar
   small request files, or 'N' for no.
 
-  -TF or -ToFormat (Alias: -OutputFormat|-ProductFormat), ':'-delimited string
+  -TF or -ToFormat (Alias: -OutputFormat|-ProductFormat), ':' delimited string
   of data format(s) for output files staged on GDEX Server for download after
   format conversion or subsetting. These are content formats of output data
   files. For example, NETCDF:GRIB.
