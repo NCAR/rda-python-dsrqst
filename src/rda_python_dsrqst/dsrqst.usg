@@ -1578,10 +1578,6 @@ types of Info option:
 
   -WF or -WebFile, the data file name staged online.
 
-  -WH or -WebHomeDir (Alias: -DownloadDir|-OnlineDir) specifies a download
-  directory on the GDEX Server for staging temporary data files for the
-  download/archive activity.
-
   -WT or -WebFileType, the file type for the requested data; D-Data,
   O-dOcument, and S-Software.
 
