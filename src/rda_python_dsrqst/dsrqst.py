@@ -579,7 +579,7 @@ class DsRqst(PgRqst):
             cnd = "rindex = {}".format(ridx)
             pgrec = self.pgget(tname, "*", cnd, self.PGOPT['extlog'])
             if pgrec:
-               if 'MD' not in self.params and pgrec['specialist'] != self.params['LN'] and self.params['LN'] != self.PGLOG['GDEXUSER']:
+               if 'MD' not in self.params and pgrec['specialist'] != self.params['LN'] and self.params['LN'] != self.PGLOG['COMMONUSER']:
                   self.action_error("{}: Must be '{}' to set request index {}".format(self.params['LN'], pgrec['specialist'], cnd))
                if 'GU' in self.params:
                   if "POH".find(pgrec['status']) > -1:
@@ -629,7 +629,7 @@ class DsRqst(PgRqst):
             else:
                if 'specialist' not in record:
                   record['specialist'] = self.params['LN']
-               elif 'MD' not in self.params and record['specialist'] != self.params['LN'] and self.params['LN'] != self.PGLOG['GDEXUSER']:
+               elif 'MD' not in self.params and record['specialist'] != self.params['LN'] and self.params['LN'] != self.PGLOG['COMMONUSER']:
                   self.action_error("Must be '{}' to add request record".format(record['specialist']))
                if 'rqsttype' not in record: record['rqsttype'] = "C"  # default to customized request type
                nidx = self.new_request_id()
@@ -728,7 +728,7 @@ class DsRqst(PgRqst):
             cnd = "cindex = {}".format(cidx)
             pgrec = self.pgget(tname, "*", cnd, self.PGOPT['extlog'])
             if not pgrec: self.action_error("Miss control record for " + cnd)
-            if 'MD' not in self.params and pgrec['specialist'] != self.params['LN'] and self.params['LN'] != self.PGLOG['GDEXUSER']:
+            if 'MD' not in self.params and pgrec['specialist'] != self.params['LN'] and self.params['LN'] != self.PGLOG['COMMONUSER']:
                self.action_error("{}: Must be '{}' to set reuqest control {}".format(self.params['LN'], pgrec['specialist'], cnd))
          else:
             pgrec  = None
@@ -754,7 +754,7 @@ class DsRqst(PgRqst):
                   continue
                if 'specialist' not in record:
                   record['specialist'] = self.params['LN']
-               elif 'MD' not in self.params and record['specialist'] != self.params['LN'] and self.params['LN'] != self.PGLOG['GDEXUSER']:
+               elif 'MD' not in self.params and record['specialist'] != self.params['LN'] and self.params['LN'] != self.PGLOG['COMMONUSER']:
                   self.action_error("{}: Must be '{}' to add request control record".format(self.params['LN'], record['specialist']))
                cidx = self.pgadd(tname, record, self.PGOPT['extlog']|self.AUTOID)
                if cidx:
