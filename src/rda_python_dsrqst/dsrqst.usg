@@ -67,10 +67,24 @@ that request or its partitions. Ownership of a request can be transferred to
 another specialist by setting a different specialist in the request control
 record.
 
-The following sections describe general usage of 'dsrqst' first, then provide
-detailed descriptions of each option with examples. Other utility programs,
-such as 'dsrqst.php', that help submit, change, and check request status
-online are described at the end of the document.
+The 'dsrqst' user guide hosted on Read the Docs is generated from this
+'dsrqst.usg' file. Opening a pull request that modifies this 'dsrqst.usg'
+file in the GitHub repository https://github.com/NCAR/rda-python-dsrqst
+triggers an automated workflow that converts the file into the RST source
+files, syncs the rda_python_dsrqst version into the documentation, and opens
+a new pull request for review in the GitHub repository
+https://github.com/NCAR/gdex-docs-dsrqst. Merging that pull request
+publishes the user guide as the 'latest' version at
+https://gdex-docs-dsrqst.readthedocs.io, and creating a GitHub release
+there publishes it as the 'stable' version.
+
+The remainder of this document is organized as follows. Section 2 covers
+general usage and conventions. Section 3 describes Action options grouped
+by what they manipulate (request controls, request records, and request
+processing). Section 4 lists Mode options that modify how an action
+behaves. Section 5 lists Information options that pass values into an
+action. Section 6 describes companion utility programs, such as
+'dsrqst.php', that help submit, change, and check request status online.
 
 All 'dsrqst' configuration can be managed through the online interface at
 https://gdex.ucar.edu/rda_pg_config under the entry for DSRQST.
@@ -81,57 +95,83 @@ https://gdex.ucar.edu/rda_pg_config under the entry for DSRQST.
       or
   dsrqst [-(IF|InputFile)] InputFileNames [-b]
 
-Brackets [] indicate optional items. A pipe '|' inside parentheses, as in
-(A|B), means either A or B can be used. The options accepted by 'dsrqst'
-fall into three categories: Action, Mode, and Information (Info for short)
-options. Action options specify the task the utility executes; Mode options
-modify the behavior of an action; and Info options pass one or more values
-to 'dsrqst'. Options can be given in short or long form, for example -DS
-or -Dataset. Some options also have alias names for convenience. Option
-names are case-insensitive, but the values that follow Info options are
-case-sensitive.
+Notation:
+  []       - the enclosed element is optional.
+  (A|B)    - either A or B may be used (a short form and a long form).
+  -<OPT>   - OPT is an option name. Names are case-insensitive; values are not.
 
-Option -DS is an Info option that specifies a dataset number. If a dataset
-number is given as the first argument following the 'dsrqst' command, the
-option name -DS (-Dataset) can be omitted. Some actions can run without a
-dataset number, in which case they apply to all available request records
-across datasets. Most 'dsrqst' actions can process multiple datasets in a
-single execution.
+Every dsrqst invocation has at most one Action option, which selects the
+task to perform. Mode options change how the chosen action behaves. Info
+options carry the data the action needs (indices, dataset IDs, dates, file
+names, etc.). Each action documents which Info options are required and
+which are optional.
 
-Specify exactly one Action option per 'dsrqst' execution. Depending on the
-chosen Action, certain Info options are mandatory and others are optional,
-and certain Mode options can be used to alter the action's behavior.
-Providing multiple Action options simultaneously is not allowed.
+Option -DS (-Dataset) supplies a dataset number. When it is the first
+argument after 'dsrqst', the option name itself may be omitted. Some actions
+can run without a dataset number, in which case they apply to all matching
+request records across datasets; most actions can process multiple datasets
+in a single execution.
 
-All options except Info option -IF (-InputFile) can be given on the command
-line or in input files. Input file names are specified through Info option
--IF and can only be provided on the command line. See the description of
-Info option -IF (-InputFile) for the format of options inside input files.
-One or more input files can be combined with command-line options to run
-'dsrqst'. The option name -IF (-InputFile) itself can be omitted when a
-single input file is given on the command line and all action and option
-information is provided inside that file.
+Many options have an alias for convenience; both short and long forms are
+accepted, and aliases are noted with each option.
 
-When retrieving information about request controls, request partitions,
-request records, or requested files, Info options specify the conditions
-used to query GDEXDB. Special characters can further restrict a query:
-'!', '<', '>', and '<>'. When provided on the command line, these characters
-must be quoted or escaped to avoid shell interpretation. The character '!',
-or \!, means exclusion of the value(s) that follow and must be the first
-value following an Info option name. '<' and '>' mean less than or greater
-than the following value, and '<>' means between the following two values.
-Combine '!' and '<' as "'!' '<' OptionValue" to express a condition of
-'greater than or equal to OptionValue'.
+2.1 Quick Start
 
-Display help for a specific option by running:
+  Show the full document, paged through 'more':
+  dsrqst
+
+  Show the description of a single option:
+  dsrqst -h -SC
+
+  Retrieve your request control records for a dataset:
+  dsrqst d540000 -GC
+
+  Retrieve request records for a dataset:
+  dsrqst d540000 -GR
+
+  Build a queued request by request index:
+  dsrqst -BR -RI 12345
+
+  Email yourself the status of a request:
+  dsrqst -ER -RI 12345
+
+  Purge a request by request index:
+  dsrqst -PR -RI 12345
+
+2.2 Filters and Special Characters in Queries
+
+For Get-style actions (-GC, -GR, -GP, -GF, -GT), Info options are interpreted
+as query filters that specify the conditions used to query GDEXDB. Four
+characters refine those filters; quote or escape them on the command line so
+the shell does not consume them:
+
+  '!'   - negate the match. Must appear immediately after the option name
+          (may need escaping as '\!' in some shells due to history expansion).
+  '<'   - less-than comparison against the next value.
+  '>'   - greater-than comparison against the next value.
+  '<>'  - range between the next two values (inclusive).
+
+The combination "'!' '<' value" expresses 'greater than or equal to value'.
+
+2.3 Input Files
+
+Every option except -IF (-InputFile) may be supplied either on the command
+line or in an input file. -IF is itself only valid on the command line. A
+single dsrqst invocation may combine command-line options with one or more
+input files. If the only options are inside a single input file, the -IF
+prefix may be omitted. See the description of -IF in Section 5.2 for the
+input-file format (comments, action/mode markers, single-value assignments,
+and tabular multi-value assignments, including delimiter overrides).
+
+2.4 Getting Help
 
   dsrqst [Option] -(h|help) [Option]
 
-The description is shown for an option placed either before or after
--(h|help). If no option is specified, or if 'dsrqst' is issued by itself,
-this entire document is displayed via the UNIX utility 'more'. A hard copy
-of this help document can be printed from the saved file dsrqst.usg under
-the Python package rda_python_dsrqst/.
+The description of a single option is shown when -h (-help) is given with
+that option, placed either before or after -h. With no option, or when
+'dsrqst' is run without arguments, the full document is displayed through
+the UNIX 'more' utility. A printable copy of this document is the file
+dsrqst.usg installed under the python package rda_python_dsrqst.
 
 #The online HTML version of this document is available at
 #http://gdex-docs-dsrqst.readthedocs.io
@@ -1569,7 +1609,7 @@ types of Info option:
   online for download. The ready time is set automatically when a request
   is processed. Use this option only if it needs to be changed.
 
-  -UA or -URL (Alias: -URLAddress|-URLLink) provides a URL link to use as
+  -UA or -URL (Alias: -URLAddress|URLLink) provides a URL link to use as
   the initial webpage for the specified request.
 
   -VP or -ValidPeriod defaults to 5 days. Sets the number of days the data
@@ -1577,10 +1617,6 @@ types of Info option:
   purged.
 
   -WF or -WebFile, the data file name staged online.
-
-  -WH or -WebHomeDir (Alias: -DownloadDir|-OnlineDir) specifies a download
-  directory on the GDEX Server for staging temporary data files for the
-  download/archive activity.
 
   -WT or -WebFileType, the file type for the requested data; D-Data,
   O-dOcument, and S-Software.
